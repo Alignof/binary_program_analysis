@@ -71,7 +71,7 @@ impl ProgramHeader {
             .step_by(4)
             .enumerate()
         {
-            if block % 16 == 0 {
+            if block % 8 == 0 {
                 println!()
             }
             print!("{:08x} ", get_u32(mmap, dump_part as usize));

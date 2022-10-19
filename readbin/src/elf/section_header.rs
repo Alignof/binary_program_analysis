@@ -1,5 +1,5 @@
 use super::ElfHeader;
-use super::{get_u16, get_u32, is_cinst};
+use super::get_u32;
 
 pub struct SectionHeader {
     pub sh_name: String,
@@ -93,27 +93,14 @@ impl SectionHeader {
     }
 
     pub fn section_dump(&self, mmap: &[u8]) {
-        //use crate::cpu::decode::Decode;
-
-        println!("--------------------------------");
-        let mut dump_head = self.sh_offset;
-        while dump_head != self.sh_offset + self.sh_size {
-            if is_cinst(mmap, dump_head as usize) {
-                let mdump = get_u16(mmap, dump_head as usize);
-                //let inst  = mdump.decode();
-                dump_head += 2;
-
-                print!("{:<04x}\t\t", mdump);
-                //inst.unwrap().print_myself();
-            } else {
-                let mdump = get_u32(mmap, dump_head as usize);
-                //let inst  = mdump.decode();
-                dump_head += 4;
-
-                print!("{:<08x}\t", mdump);
-                //inst.unwrap().print_myself();
+        for (block, dump_part) in (self.sh_offset..self.sh_offset + self.sh_size as u32)
+            .step_by(4)
+            .enumerate()
+        {
+            if block % 8 == 0 {
+                println!()
             }
-            println!();
+            print!("{:08x} ", get_u32(mmap, dump_part as usize));
         }
     }
 
