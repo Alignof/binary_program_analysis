@@ -106,31 +106,21 @@ impl ElfHeader {
         println!("e_shnum:\t{}", self.e_shnum);
         println!("e_shstrndx:\t{}", self.e_shstrndx);
     }
-
-    pub fn ident_show(&self) {
-        self.e_ident.show();
-    }
-
-    pub fn is_elf(&self) -> bool {
-        const HEADER_MAGIC: [u8; 4] = [0x7f, 0x45, 0x4c, 0x46];
-        self.e_ident.magic[0..4] == HEADER_MAGIC
-    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
+    use memmap::Mmap;
     use super::super::*;
 
     #[test]
     fn elf_header_test() {
-        let loader = match ElfLoader::try_new("./HelloWorld") {
-            Ok(loader) => loader,
-            Err(error) => {
-                panic!("There was a problem opening the file: {:?}", error);
-            }
-        };
+        let filename = "./HelloWorld";
+        let file = File::open(filename).unwrap();
+        let mapped_data = unsafe { Mmap::map(&file).unwrap() };
+        let loader = ElfLoader::new(mapped_data);
 
-        assert!(loader.is_elf());
         assert_eq!(loader.elf_header.e_type, 2);
         assert_eq!(loader.elf_header.e_flags, 1);
         assert_eq!(loader.elf_header.e_version, 1);

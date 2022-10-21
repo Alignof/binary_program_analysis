@@ -103,8 +103,4 @@ impl SectionHeader {
             print!("{:08x} ", get_u32(mmap, dump_part as usize));
         }
     }
-
-    pub fn is_dumpable(&self) -> bool {
-        self.sh_flags >> 2 & 1 == 1
-    }
 }
