@@ -20,10 +20,6 @@ pub fn get_u32(mmap: &[u8], index: usize) -> u32 {
         | (mmap[index + 0] as u32)
 }
 
-pub fn is_cinst(mmap: &[u8], index: usize) -> bool {
-    mmap[index] & 0x3 != 0x3
-}
-
 pub struct ElfLoader {
     pub elf_header: ElfHeader,
     pub prog_headers: Vec<ProgramHeader>,
@@ -32,7 +28,7 @@ pub struct ElfLoader {
 }
 
 impl ElfLoader {
-    pub fn try_new(mapped_data: Mmap) -> ElfLoader {
+    pub fn new(mapped_data: Mmap) -> ElfLoader {
         let new_elf = ElfHeader::new(&mapped_data);
         let new_prog = ProgramHeader::new(&mapped_data, &new_elf);
         let new_sect = SectionHeader::new(&mapped_data, &new_elf);
@@ -43,10 +39,6 @@ impl ElfLoader {
             sect_headers: new_sect,
             mem_data: mapped_data,
         }
-    }
-
-    pub fn is_elf(&self) -> bool {
-        self.elf_header.is_elf()
     }
 
     pub fn get_host_addr(&self) -> (Option<u32>, Option<u32>) {
@@ -117,11 +109,9 @@ impl ElfLoader {
 
     pub fn dump_section(&self) {
         for (id, sect) in self.sect_headers.iter().enumerate() {
-            if sect.is_dumpable() {
-                sect.show(id);
-                sect.section_dump(&self.mem_data);
-                println!("\n\n");
-            }
+            sect.show(id);
+            sect.section_dump(&self.mem_data);
+            println!("\n\n");
         }
     }
 }
