@@ -1,4 +1,5 @@
 mod elf;
+mod pe;
 
 use clap::{arg, AppSettings, ArgGroup};
 use memmap::Mmap;
@@ -55,10 +56,11 @@ fn main() -> std::io::Result<()> {
 
     let file = File::open(filename)?;
     let mapped_data = unsafe { Mmap::map(&file)? };
-    let loader = elf::ElfLoader::try_new(mapped_data);
 
-    if loader.is_elf() {
-        println!("elfcheck: OK\n");
+    const ELF_HEADER_MAGIC: [u8; 4] = [0x7f, 0x45, 0x4c, 0x46];
+    const PE_HEADER_MAGIC: [u8; 2] = [0x4d, 0x5a];
+    if mapped_data[0..4] == ELF_HEADER_MAGIC {
+        let loader = elf::ElfLoader::new(mapped_data);
 
         match exe_option {
             ExeOption::OPT_DEFAULT => loader.header_show(),
@@ -67,8 +69,22 @@ fn main() -> std::io::Result<()> {
             ExeOption::OPT_SECT => loader.dump_section(),
             ExeOption::OPT_PROG => loader.dump_segment(),
             ExeOption::OPT_SHOWALL => loader.show_all_header(),
-        };
-    }
+        }
+    } else if mapped_data[0..2] == PE_HEADER_MAGIC {
+        let loader = pe::PeLoader::new(mapped_data);
+        match exe_option {
+            ExeOption::OPT_DEFAULT => loader.header_show(),
+            ExeOption::OPT_ELFHEAD => loader.header_show(),
+            _ => loader.header_show(),
+            //ExeOption::OPT_DISASEM => loader.dump_section(),
+            //ExeOption::OPT_SECT => loader.dump_section(),
+            //ExeOption::OPT_PROG => loader.dump_segment(),
+            //ExeOption::OPT_SHOWALL => loader.show_all_header(),
+        }
+    } else {
+        dbg!(&mapped_data[0..4]);
+        panic!("unrecognized file format")
+    };
 
     Ok(())
 }
