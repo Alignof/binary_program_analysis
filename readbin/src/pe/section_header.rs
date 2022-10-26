@@ -16,22 +16,15 @@ pub struct SectionHeader {
 
 impl SectionHeader {
     pub fn new(mmap: &[u8], sect_num: usize, header_start: usize) -> Vec<SectionHeader> {
-        const SectSize: usize = 40;
+        const SECT_SIZE: usize = 40;
         let mut section_headers = Vec::new();
-        for offset in (header_start .. sect_num * SectSize).step_by(SectSize) {
+        for offset in (header_start .. sect_num * SECT_SIZE).step_by(SECT_SIZE) {
             section_headers.push(
                 SectionHeader {
                     name: get_u64(mmap, offset)
                         .to_le_bytes()
                         .iter()
-                        .map(|b| {
-                            let c = *b as char;
-                            if c.is_ascii() {
-                                c
-                            } else {
-                                ' '
-                            }
-                        } as char)
+                        .map(|b| *b as char)
                         .collect::<String>(),
                     virtual_size: get_u32(mmap, offset + 8),
                     virtual_address: get_u32(mmap, offset + 12),
