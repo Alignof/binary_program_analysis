@@ -64,9 +64,9 @@ impl NtHeader {
     }
 
     pub fn sect_off(&self) -> usize {
-        const MagicSz: usize = 2;
-        const FileHeaderSz: usize = 20;
-        self.offset + MagicSz + FileHeaderSz + self.file_header.size_of_optional_header as usize
+        const MAGIC_SIZE: usize = 4;
+        const FILEHEADER_SIZE: usize = 20;
+        self.offset + MAGIC_SIZE + FILEHEADER_SIZE + self.file_header.size_of_optional_header as usize
     }
 
     pub fn sect_num(&self) -> usize {
