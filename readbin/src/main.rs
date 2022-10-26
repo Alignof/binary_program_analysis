@@ -11,21 +11,21 @@ pub enum ExeOption {
     OPT_ELFHEAD,
     OPT_PROG,
     OPT_SECT,
-    OPT_DISASEM,
+    OPT_DUMP,
     OPT_SHOWALL,
 }
 
 fn main() -> std::io::Result<()> {
     let app = clap::app_from_crate!()
-        .arg(arg!(<filename> "ELF file path").group("ELF"))
-        .arg(arg!(-e --elfhead ... "Show ELF header"))
+        .arg(arg!(<filename> "target file path").group("ELF"))
+        .arg(arg!(-e --elfhead ... "Show header"))
         .arg(arg!(-p --program ... "Show all segments"))
         .arg(arg!(-s --section ... "Show all sections"))
-        .arg(arg!(-d --disasem ... "Disassemble ELF"))
-        .arg(arg!(-a --all ... "Show all ELF data"))
+        .arg(arg!(-d --dump ... "Dump ELF/PE"))
+        .arg(arg!(-a --all ... "Show all ELF/PE data"))
         .group(
             ArgGroup::new("run option")
-                .args(&["elfhead", "disasem", "program", "section", "all"])
+                .args(&["elfhead", "dump", "program", "section", "all"])
                 .required(false),
         )
         .setting(AppSettings::DeriveDisplayOrder)
@@ -41,7 +41,7 @@ fn main() -> std::io::Result<()> {
             app.is_present("elfhead"),
             app.is_present("program"),
             app.is_present("section"),
-            app.is_present("disasem"),
+            app.is_present("dump"),
             app.is_present("all"),
         )
     };
@@ -49,7 +49,7 @@ fn main() -> std::io::Result<()> {
         (true, _, _, _, _) => ExeOption::OPT_ELFHEAD,
         (_, true, _, _, _) => ExeOption::OPT_PROG,
         (_, _, true, _, _) => ExeOption::OPT_SECT,
-        (_, _, _, true, _) => ExeOption::OPT_DISASEM,
+        (_, _, _, true, _) => ExeOption::OPT_DUMP,
         (_, _, _, _, true) => ExeOption::OPT_SHOWALL,
         _ => ExeOption::OPT_DEFAULT,
     };
@@ -65,7 +65,7 @@ fn main() -> std::io::Result<()> {
         match exe_option {
             ExeOption::OPT_DEFAULT => loader.header_show(),
             ExeOption::OPT_ELFHEAD => loader.header_show(),
-            ExeOption::OPT_DISASEM => loader.dump_section(),
+            ExeOption::OPT_DUMP => loader.dump_section(),
             ExeOption::OPT_SECT => loader.dump_section(),
             ExeOption::OPT_PROG => loader.dump_segment(),
             ExeOption::OPT_SHOWALL => loader.show_all_header(),
@@ -75,14 +75,12 @@ fn main() -> std::io::Result<()> {
         match exe_option {
             ExeOption::OPT_DEFAULT => loader.header_show(),
             ExeOption::OPT_ELFHEAD => loader.header_show(),
+            ExeOption::OPT_SECT => loader.dump_section(),
+            ExeOption::OPT_DUMP => loader.dump_section(),
+            ExeOption::OPT_SHOWALL => loader.show_all_header(),
             _ => loader.header_show(),
-            //ExeOption::OPT_DISASEM => loader.dump_section(),
-            //ExeOption::OPT_SECT => loader.dump_section(),
-            //ExeOption::OPT_PROG => loader.dump_segment(),
-            //ExeOption::OPT_SHOWALL => loader.show_all_header(),
         }
     } else {
-        dbg!(&mapped_data[0..4]);
         panic!("unrecognized file format")
     };
 
