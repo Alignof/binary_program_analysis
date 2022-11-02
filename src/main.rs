@@ -10,7 +10,7 @@ pub enum ExeOption {
     OPT_ELFHEAD,
     OPT_PROG,
     OPT_SECT,
-    OPT_DUMP,
+    OPT_DISASEM,
     OPT_SHOWALL,
 }
 
@@ -48,7 +48,7 @@ fn main() -> std::io::Result<()> {
         (true, _, _, _, _) => ExeOption::OPT_ELFHEAD,
         (_, true, _, _, _) => ExeOption::OPT_PROG,
         (_, _, true, _, _) => ExeOption::OPT_SECT,
-        (_, _, _, true, _) => ExeOption::OPT_DUMP,
+        (_, _, _, true, _) => ExeOption::OPT_DISASEM,
         (_, _, _, _, true) => ExeOption::OPT_SHOWALL,
         _ => ExeOption::OPT_DEFAULT,
     };
@@ -70,10 +70,10 @@ fn main() -> std::io::Result<()> {
     match exe_option {
         ExeOption::OPT_DEFAULT => loader.header_show(),
         ExeOption::OPT_ELFHEAD => loader.header_show(),
+        ExeOption::OPT_PROG => loader.dump_segment(),
         ExeOption::OPT_SECT => loader.dump_section(),
-        ExeOption::OPT_DUMP => loader.dump_section(),
+        ExeOption::OPT_DISASEM => loader.dump_section(),
         ExeOption::OPT_SHOWALL => loader.show_all_header(),
-        _ => loader.header_show(),
     }
 
     Ok(())

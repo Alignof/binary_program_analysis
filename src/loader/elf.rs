@@ -37,15 +37,21 @@ impl Loader for ElfLoader {
         self.elf_header.show();
     }
 
-    fn dump_segment(&self) {
+    fn show_segment(&self) {
         for (id, prog) in self.prog_headers.iter().enumerate() {
             prog.show(id);
-            prog.segment_dump(&self.mem_data);
             println!("\n\n");
         }
     }
 
-    fn dump_section(&self) {
+    fn show_section(&self) {
+        for (id, sect) in self.sect_headers.iter().enumerate() {
+            sect.show(id);
+            println!("\n\n");
+        }
+    }
+
+    fn disassemble(&self) {
         for (id, sect) in self.sect_headers.iter().enumerate() {
             sect.show(id);
             sect.section_dump(&self.mem_data);

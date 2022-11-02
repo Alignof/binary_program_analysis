@@ -28,7 +28,8 @@ pub fn get_u64(mmap: &[u8], index: usize) -> u64 {
 
 pub trait Loader {
     fn header_show(&self);
-    fn dump_segment(&self);
-    fn dump_section(&self);
+    fn show_segment(&self);
+    fn show_section(&self);
+    fn disassemble(&self);
     fn show_all_header(&self);
 }

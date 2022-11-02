@@ -37,15 +37,21 @@ impl Loader for PeLoader {
         self.msdos_header.show();
     }
 
-    fn dump_section(&self) {
+    fn show_segment(&self) {
+        self.show_section();
+    }
+
+    fn show_section(&self) {
+        for sect in &self.sect_headers {
+            sect.show();
+        }
+    }
+
+    fn disassemble(&self) {
         for sect in &self.sect_headers {
             sect.show();
             sect.dump(&self.mem_data);
         }
-    }
-
-    fn dump_segment(&self) {
-        self.dump_section();
     }
 
     fn show_all_header(&self) {
