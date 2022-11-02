@@ -25,3 +25,10 @@ pub fn get_u64(mmap: &[u8], index: usize) -> u64 {
         | (mmap[index + 1] as u64) << 8
         | (mmap[index + 0] as u64)
 }
+
+pub trait Loader {
+    fn header_show(&self);
+    fn dump_segment(&self);
+    fn dump_section(&self);
+    fn show_all_header(&self);
+}
