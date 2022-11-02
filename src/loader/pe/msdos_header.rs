@@ -1,4 +1,4 @@
-use crate::pe::{get_u16, get_u32};
+use crate::loader::{get_u16, get_u32};
 
 #[derive(Debug)]
 pub struct MsDosHeader {

@@ -1,4 +1,4 @@
-use super::get_u32;
+use crate::loader::get_u32;
 use super::ElfHeader;
 
 fn get_segment_type_name(segment_type: u32) -> &'static str {

@@ -1,4 +1,4 @@
-use crate::pe::{get_u16, get_u32, get_u64};
+use crate::loader::{get_u16, get_u32, get_u64};
 pub struct NtHeader {
     offset: usize,
     signature: u32,

@@ -1,5 +1,4 @@
-mod elf;
-mod pe;
+mod loader;
 
 use clap::{arg, AppSettings, ArgGroup};
 use memmap::Mmap;
@@ -60,7 +59,7 @@ fn main() -> std::io::Result<()> {
     const ELF_HEADER_MAGIC: [u8; 4] = [0x7f, 0x45, 0x4c, 0x46];
     const PE_HEADER_MAGIC: [u8; 2] = [0x4d, 0x5a];
     if mapped_data[0..4] == ELF_HEADER_MAGIC {
-        let loader = elf::ElfLoader::new(mapped_data);
+        let loader = loader::elf::ElfLoader::new(mapped_data);
 
         match exe_option {
             ExeOption::OPT_DEFAULT => loader.header_show(),
@@ -71,7 +70,7 @@ fn main() -> std::io::Result<()> {
             ExeOption::OPT_SHOWALL => loader.show_all_header(),
         }
     } else if mapped_data[0..2] == PE_HEADER_MAGIC {
-        let loader = pe::PeLoader::new(mapped_data);
+        let loader = loader::pe::PeLoader::new(mapped_data);
         match exe_option {
             ExeOption::OPT_DEFAULT => loader.header_show(),
             ExeOption::OPT_ELFHEAD => loader.header_show(),

@@ -1,5 +1,5 @@
 use super::ElfHeader;
-use super::get_u32;
+use crate::loader::get_u32;
 
 pub struct SectionHeader {
     pub sh_name: String,

@@ -1,4 +1,4 @@
-use crate::elf::{get_u16, get_u32};
+use crate::loader::{get_u16, get_u32};
 
 fn get_elf_type_name(elf_type: u16) -> &'static str {
     match elf_type {
