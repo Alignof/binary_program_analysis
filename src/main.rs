@@ -58,30 +58,23 @@ fn main() -> std::io::Result<()> {
 
     const ELF_HEADER_MAGIC: [u8; 4] = [0x7f, 0x45, 0x4c, 0x46];
     const PE_HEADER_MAGIC: [u8; 2] = [0x4d, 0x5a];
-    if mapped_data[0..4] == ELF_HEADER_MAGIC {
-        let loader = loader::elf::ElfLoader::new(mapped_data);
 
-        match exe_option {
-            ExeOption::OPT_DEFAULT => loader.header_show(),
-            ExeOption::OPT_ELFHEAD => loader.header_show(),
-            ExeOption::OPT_DUMP => loader.dump_section(),
-            ExeOption::OPT_SECT => loader.dump_section(),
-            ExeOption::OPT_PROG => loader.dump_segment(),
-            ExeOption::OPT_SHOWALL => loader.show_all_header(),
-        }
+    let loader = if mapped_data[0..4] == ELF_HEADER_MAGIC {
+        loader::elf::ElfLoader::new(mapped_data)
     } else if mapped_data[0..2] == PE_HEADER_MAGIC {
-        let loader = loader::pe::PeLoader::new(mapped_data);
-        match exe_option {
-            ExeOption::OPT_DEFAULT => loader.header_show(),
-            ExeOption::OPT_ELFHEAD => loader.header_show(),
-            ExeOption::OPT_SECT => loader.dump_section(),
-            ExeOption::OPT_DUMP => loader.dump_section(),
-            ExeOption::OPT_SHOWALL => loader.show_all_header(),
-            _ => loader.header_show(),
-        }
+        loader::pe::PeLoader::new(mapped_data)
     } else {
         panic!("unrecognized file format")
     };
+
+    match exe_option {
+        ExeOption::OPT_DEFAULT => loader.header_show(),
+        ExeOption::OPT_ELFHEAD => loader.header_show(),
+        ExeOption::OPT_SECT => loader.dump_section(),
+        ExeOption::OPT_DUMP => loader.dump_section(),
+        ExeOption::OPT_SHOWALL => loader.show_all_header(),
+        _ => loader.header_show(),
+    }
 
     Ok(())
 }
