@@ -6,6 +6,46 @@ use elf_32::program_header::ProgramHeader;
 use elf_32::section_header::SectionHeader32;
 use crate::loader::Loader;
 
+struct ElfIdentification {
+    magic: [u8; 16],
+    class: u8,
+    endian: u8,
+    version: u8,
+    os_abi: u8,
+    os_abi_ver: u8,
+}
+
+impl ElfIdentification {
+    fn new(mmap: &[u8]) -> ElfIdentification {
+        let mut magic: [u8; 16] = [0; 16];
+        for (i, m) in mmap[0..16].iter().enumerate() {
+            magic[i] = *m;
+        }
+
+        ElfIdentification {
+            magic,
+            class: mmap[4],
+            endian: mmap[5],
+            version: mmap[6],
+            os_abi: mmap[7],
+            os_abi_ver: mmap[8],
+        }
+    }
+
+    fn show(&self) {
+        print!("magic:\t");
+        for byte in self.magic.iter() {
+            print!("{:02x} ", byte);
+        }
+        println!();
+        println!("class:\t\t{:?}", self.class);
+        println!("endian:\t\t{:?}", self.endian);
+        println!("version:\t{:?}", self.version);
+        println!("os_abi:\t\t{:?}", self.os_abi);
+        println!("os_abi_ver:\t{:?}", self.os_abi_ver);
+    }
+}
+
 pub struct ElfLoader {
     pub elf_header: ElfHeader,
     pub prog_headers: Vec<ProgramHeader>,
