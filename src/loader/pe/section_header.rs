@@ -1,3 +1,4 @@
+use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
 use crate::loader::{get_u16, get_u32, get_u64};
 
 pub struct SectionHeader {
@@ -56,16 +57,44 @@ impl SectionHeader {
     }
 
     pub fn dump(&self, mmap: &[u8]) {
-        println!("--------------------------------");
-        let mut dump_head = self.pointer_to_raw_data;
-        while dump_head < self.pointer_to_raw_data + self.size_of_raw_data {
-            let mdump = get_u32(mmap, dump_head as usize);
-            dump_head += 4;
+        if self.characteristics & 0x00000020 != 0x0 {
+            const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
+            const EXAMPLE_CODE_BITNESS: u32 = 64;
+            let EXAMPLE_CODE_RIP: u64 = self.virtual_address as u64;
 
-            print!("{:<08x} ", mdump);
+            let bytes = &mmap[self.pointer_to_raw_data as usize .. (self.pointer_to_raw_data + self.size_of_raw_data) as usize];
+            let mut decoder = Decoder::with_ip(
+                EXAMPLE_CODE_BITNESS,
+                bytes,
+                EXAMPLE_CODE_RIP,
+                DecoderOptions::NONE
+            );
+            let mut formatter = NasmFormatter::new();
 
-            if dump_head % 32 == 0 {
-                println!();
+            formatter.options_mut().set_digit_separator("`");
+            formatter.options_mut().set_first_operand_char_index(10);
+
+            let mut output = String::new();
+
+            let mut instruction = Instruction::default();
+            while decoder.can_decode() {
+                decoder.decode_out(&mut instruction);
+
+                output.clear();
+                formatter.format(&instruction, &mut output);
+
+                print!("{:016X} ", instruction.ip());
+                let start_index = (instruction.ip() - EXAMPLE_CODE_RIP) as usize;
+                let instr_bytes = &bytes[start_index..start_index + instruction.len()];
+                for b in instr_bytes.iter() {
+                    print!("{:02X}", b);
+                }
+                if instr_bytes.len() < HEXBYTES_COLUMN_BYTE_LENGTH {
+                    for _ in 0..HEXBYTES_COLUMN_BYTE_LENGTH - instr_bytes.len() {
+                        print!("  ");
+                    }
+                }
+                println!(" {}", output);
             }
         }
     }

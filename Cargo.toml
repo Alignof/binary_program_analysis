@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 memmap = "0.7.0"
+iced-x86 = "1.17.0"
 clap = {version = "3.0.5", features=["cargo"]}
