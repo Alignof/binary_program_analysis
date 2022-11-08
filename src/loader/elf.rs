@@ -1,17 +1,15 @@
-mod elf_header;
-mod program_header;
-mod section_header;
+mod elf_32;
 
-use elf_header::ElfHeader;
+use elf_32::elf_header::ElfHeader;
 use memmap::Mmap;
-use program_header::ProgramHeader;
-use section_header::SectionHeader;
+use elf_32::program_header::ProgramHeader;
+use elf_32::section_header::SectionHeader32;
 use crate::loader::Loader;
 
 pub struct ElfLoader {
     pub elf_header: ElfHeader,
     pub prog_headers: Vec<ProgramHeader>,
-    pub sect_headers: Vec<SectionHeader>,
+    pub sect_headers: Vec<SectionHeader32>,
     pub mem_data: Mmap,
 }
 
@@ -19,7 +17,7 @@ impl ElfLoader {
     pub fn new(mapped_data: Mmap) -> Box<dyn Loader> {
         let new_elf = ElfHeader::new(&mapped_data);
         let new_prog = ProgramHeader::new(&mapped_data, &new_elf);
-        let new_sect = SectionHeader::new(&mapped_data, &new_elf);
+        let new_sect = SectionHeader32::new(&mapped_data, &new_elf);
 
         Box::new(
             ElfLoader {

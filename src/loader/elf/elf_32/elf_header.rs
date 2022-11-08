@@ -107,23 +107,3 @@ impl ElfHeader {
         println!("e_shstrndx:\t{}", self.e_shstrndx);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use std::fs::File;
-    use memmap::Mmap;
-    use super::super::*;
-
-    #[test]
-    fn elf_header_test() {
-        let filename = "./HelloWorld";
-        let file = File::open(filename).unwrap();
-        let mapped_data = unsafe { Mmap::map(&file).unwrap() };
-        let loader = ElfLoader::new(mapped_data);
-
-        assert_eq!(loader.elf_header.e_type, 2);
-        assert_eq!(loader.elf_header.e_flags, 1);
-        assert_eq!(loader.elf_header.e_version, 1);
-        assert_eq!(loader.elf_header.e_machine, 243);
-    }
-}
