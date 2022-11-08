@@ -62,7 +62,7 @@ impl ProgramHeader {
         println!("p_align:\t0x{:x}", self.p_align);
     }
 
-    pub fn segment_dump(&self, mmap: &[u8]) {
+    pub fn dump(&self, mmap: &[u8]) {
         for (block, dump_part) in (self.p_offset..self.p_offset + self.p_memsz as u32)
             .step_by(4)
             .enumerate()
