@@ -70,9 +70,9 @@ fn main() -> std::io::Result<()> {
     match exe_option {
         ExeOption::OPT_DEFAULT => loader.header_show(),
         ExeOption::OPT_ELFHEAD => loader.header_show(),
-        ExeOption::OPT_PROG => loader.dump_segment(),
-        ExeOption::OPT_SECT => loader.dump_section(),
-        ExeOption::OPT_DISASEM => loader.dump_section(),
+        ExeOption::OPT_PROG => loader.show_segment(),
+        ExeOption::OPT_SECT => loader.show_section(),
+        ExeOption::OPT_DISASEM => loader.disassemble(),
         ExeOption::OPT_SHOWALL => loader.show_all_header(),
     }
 
