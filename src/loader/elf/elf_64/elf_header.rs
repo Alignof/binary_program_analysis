@@ -1,5 +1,5 @@
 use crate::loader::{get_u16, get_u32, get_u64};
-use crate::loader::elf::ElfIdentification;
+use crate::loader::elf::{ElfIdentification, ElfHeader};
 
 fn get_elf_type_name(elf_type: u16) -> &'static str {
     match elf_type {
@@ -30,27 +30,31 @@ pub struct ElfHeader64 {
 }
 
 impl ElfHeader64 {
-    pub fn new(mmap: &[u8]) -> ElfHeader64 {
+    pub fn new(mmap: &[u8]) -> Box<Self> {
         const ELF_HEADER_START: usize = 16;
-        ElfHeader64 {
-            e_ident: ElfIdentification::new(mmap),
-            e_type: get_u16(mmap, ELF_HEADER_START),
-            e_machine: get_u16(mmap, ELF_HEADER_START + 2),
-            e_version: get_u32(mmap, ELF_HEADER_START + 4),
-            e_entry: get_u64(mmap, ELF_HEADER_START + 8),
-            e_phoff: get_u64(mmap, ELF_HEADER_START + 16),
-            e_shoff: get_u64(mmap, ELF_HEADER_START + 24),
-            e_flags: get_u32(mmap, ELF_HEADER_START + 32),
-            e_ehsize: get_u16(mmap, ELF_HEADER_START + 36),
-            e_phentsize: get_u16(mmap, ELF_HEADER_START + 38),
-            e_phnum: get_u16(mmap, ELF_HEADER_START + 40),
-            e_shentsize: get_u16(mmap, ELF_HEADER_START + 42),
-            e_shnum: get_u16(mmap, ELF_HEADER_START + 44),
-            e_shstrndx: get_u16(mmap, ELF_HEADER_START + 46),
-        }
+        Box::new(
+            ElfHeader64 {
+                e_ident: ElfIdentification::new(mmap),
+                e_type: get_u16(mmap, ELF_HEADER_START),
+                e_machine: get_u16(mmap, ELF_HEADER_START + 2),
+                e_version: get_u32(mmap, ELF_HEADER_START + 4),
+                e_entry: get_u64(mmap, ELF_HEADER_START + 8),
+                e_phoff: get_u64(mmap, ELF_HEADER_START + 16),
+                e_shoff: get_u64(mmap, ELF_HEADER_START + 24),
+                e_flags: get_u32(mmap, ELF_HEADER_START + 32),
+                e_ehsize: get_u16(mmap, ELF_HEADER_START + 36),
+                e_phentsize: get_u16(mmap, ELF_HEADER_START + 38),
+                e_phnum: get_u16(mmap, ELF_HEADER_START + 40),
+                e_shentsize: get_u16(mmap, ELF_HEADER_START + 42),
+                e_shnum: get_u16(mmap, ELF_HEADER_START + 44),
+                e_shstrndx: get_u16(mmap, ELF_HEADER_START + 46),
+            }
+        )
     }
+}
 
-    pub fn show(&self) {
+impl ElfHeader for ElfHeader64 {
+    fn show(&self) {
         println!("================ elf header ================");
         self.e_ident.show();
         println!("e_type:\t\t{}", get_elf_type_name(self.e_type));

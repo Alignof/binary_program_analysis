@@ -1,6 +1,7 @@
 use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
 use super::ElfHeader64;
 use crate::loader::{get_u32, get_u64};
+use crate::loader::elf::SectionHeader;
 
 pub struct SectionHeader64 {
     pub sh_name: String,
@@ -16,7 +17,7 @@ pub struct SectionHeader64 {
 }
 
 impl SectionHeader64 {
-    pub fn new(mmap: &[u8], elf_header: &ElfHeader64) -> Vec<SectionHeader64> {
+    pub fn new(&self, mmap: &[u8], elf_header: &ElfHeader64) -> Vec<Box<Self>> {
         let mut new_sect = Vec::new();
         let name_table =
             elf_header.e_shoff + (elf_header.e_shentsize * elf_header.e_shstrndx) as u64;
@@ -26,24 +27,30 @@ impl SectionHeader64 {
             let section_head: usize =
                 (elf_header.e_shoff + (elf_header.e_shentsize * section_num) as u64) as usize;
 
-            new_sect.push(SectionHeader64 {
-                sh_name: SectionHeader64::get_sh_name(mmap, section_head, name_table_off),
-                sh_type: get_u32(mmap, section_head + 4),
-                sh_flags: get_u64(mmap, section_head + 8),
-                sh_addr: get_u64(mmap, section_head + 16),
-                sh_offset: get_u64(mmap, section_head + 24),
-                sh_size: get_u64(mmap, section_head + 32),
-                sh_link: get_u32(mmap, section_head + 40),
-                sh_info: get_u32(mmap, section_head + 44),
-                sh_addralign: get_u64(mmap, section_head + 48),
-                sh_entsize: get_u64(mmap, section_head + 56),
-            });
+            new_sect.push(
+                Box::new(
+                    SectionHeader64 {
+                        sh_name: self.get_sh_name(mmap, section_head, name_table_off),
+                        sh_type: get_u32(mmap, section_head + 4),
+                        sh_flags: get_u64(mmap, section_head + 8),
+                        sh_addr: get_u64(mmap, section_head + 16),
+                        sh_offset: get_u64(mmap, section_head + 24),
+                        sh_size: get_u64(mmap, section_head + 32),
+                        sh_link: get_u32(mmap, section_head + 40),
+                        sh_info: get_u32(mmap, section_head + 44),
+                        sh_addralign: get_u64(mmap, section_head + 48),
+                        sh_entsize: get_u64(mmap, section_head + 56),
+                    }
+                )
+            );
         }
 
         new_sect
     }
+}
 
-    fn get_sh_name(mmap: &[u8], section_head: usize, name_table_head: usize) -> String {
+impl SectionHeader for SectionHeader64 {
+    fn get_sh_name(&self, mmap: &[u8], section_head: usize, name_table_head: usize) -> String {
         let name_id: usize = get_u32(mmap, section_head) as usize;
         let mut sh_name: String = String::new();
 
@@ -79,7 +86,7 @@ impl SectionHeader64 {
         }
     }
 
-    pub fn show(&self, id: usize) {
+    fn show(&self, id: usize) {
         println!("============== section header {}==============", id + 1);
         println!("sh_name:\t{}", self.sh_name);
         println!("sh_type:\t{}", self.type_to_str());
@@ -93,7 +100,7 @@ impl SectionHeader64 {
         println!("sh_entsize:\t{}", self.sh_entsize);
     }
 
-    pub fn dump(&self, mmap: &[u8]) {
+    fn dump(&self, mmap: &[u8]) {
         const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
         const EXAMPLE_CODE_BITNESS: u32 = 64;
         let EXAMPLE_CODE_RIP: u64 = self.sh_addr;
@@ -131,6 +138,37 @@ impl SectionHeader64 {
                     }
                 }
                 println!(" {}", output);
+            }
+        }
+    }
+
+    fn inst_analysis(&self, mmap: &[u8]) {
+        const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
+        const EXAMPLE_CODE_BITNESS: u32 = 64;
+        let start_addr: u64 = self.sh_addr;
+        if self.sh_flags >> 2 & 1 == 1 {
+            let bytes = &mmap[self.sh_offset as usize .. (self.sh_offset + self.sh_size) as usize];
+            let mut decoder = Decoder::with_ip(
+                EXAMPLE_CODE_BITNESS,
+                bytes,
+                start_addr,
+                DecoderOptions::NONE
+            );
+            let mut formatter = NasmFormatter::new();
+
+            formatter.options_mut().set_digit_separator("_");
+            formatter.options_mut().set_first_operand_char_index(10);
+
+            let mut output = String::new();
+
+            let mut instruction = Instruction::default();
+            while decoder.can_decode() {
+                decoder.decode_out(&mut instruction);
+
+                output.clear();
+                formatter.format(&instruction, &mut output);
+
+                print!("{:016X} ", instruction.ip());
             }
         }
     }
