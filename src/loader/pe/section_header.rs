@@ -60,6 +60,7 @@ impl SectionHeader {
         if self.characteristics & 0x00000020 != 0x0 {
             const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
             const EXAMPLE_CODE_BITNESS: u32 = 64;
+            #[allow(non_snake_case)]
             let EXAMPLE_CODE_RIP: u64 = self.virtual_address as u64;
 
             let bytes = &mmap[self.pointer_to_raw_data as usize .. (self.pointer_to_raw_data + self.size_of_raw_data) as usize];
