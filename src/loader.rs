@@ -1,6 +1,9 @@
 pub mod elf;
 pub mod pe;
 
+use std::collections::HashMap;
+use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
+
 #[allow(clippy::identity_op)]
 pub fn get_u16(mmap: &[u8], index: usize) -> u16 {
     (mmap[index + 1] as u16) << 8 | (mmap[index + 0] as u16)
@@ -26,10 +29,54 @@ pub fn get_u64(mmap: &[u8], index: usize) -> u64 {
         | (mmap[index + 0] as u64)
 }
 
+#[derive(Debug)]
 pub struct Function {
     name: String,
     addr: u64,
     size: u64,
+}
+
+impl Function {
+    pub fn inst_analysis(&self, inst_list: &mut HashMap<String, u32>, mmap: &[u8]) {
+        println!("<function: {}>", self.name);
+        const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
+        const EXAMPLE_CODE_BITNESS: u32 = 64;
+        let start_addr: u64 = self.addr as u64;
+        let bytes = &mmap[self.addr as usize .. (self.addr + self.size) as usize];
+        let mut decoder = Decoder::with_ip(
+            EXAMPLE_CODE_BITNESS,
+            bytes,
+            start_addr,
+            DecoderOptions::NONE
+        );
+        let mut formatter = NasmFormatter::new();
+
+        formatter.options_mut().set_digit_separator("_");
+        formatter.options_mut().set_first_operand_char_index(10);
+
+        let mut output = String::new();
+        let mut instruction = Instruction::default();
+        while decoder.can_decode() {
+            decoder.decode_out(&mut instruction);
+            output.clear();
+            formatter.format(&instruction, &mut output);
+
+            print!("{:016X} ", instruction.ip());
+            let start_index = (instruction.ip() - start_addr) as usize;
+            let instr_bytes = &bytes[start_index..start_index + instruction.len()];
+            for b in instr_bytes.iter() {
+                print!("{:02X}", b);
+            }
+            if instr_bytes.len() < HEXBYTES_COLUMN_BYTE_LENGTH {
+                for _ in 0..HEXBYTES_COLUMN_BYTE_LENGTH - instr_bytes.len() {
+                    print!("  ");
+                }
+            }
+            println!(" {}", output);
+            *inst_list.entry(format!("{:?}", instruction.mnemonic()))
+                .or_insert(0) += 1;
+        }
+    }
 }
 
 pub trait Loader {
