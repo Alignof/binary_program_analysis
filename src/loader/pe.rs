@@ -110,11 +110,11 @@ impl Loader for PeLoader {
     }
 
     fn analysis(&self) {
-        let mut inst_list = HashMap::new();
-        for sect in self.sect_headers.iter() {
-            sect.inst_analysis(&mut inst_list, &self.mem_data);
+        for func in self.functions.iter() {
+            let mut inst_list = HashMap::new();
+            func.inst_analysis(&mut inst_list, &self.mem_data);
+            println!("{:#?}", inst_list);
         }
-        println!("{:#?}", inst_list);
     }
 }
 

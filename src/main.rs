@@ -11,7 +11,7 @@ pub enum ExeOption {
     OPT_PROG,
     OPT_SECT,
     OPT_DISASEM,
-    OPT_SHOWALL,
+    OPT_ANALYSIS,
 }
 
 fn main() -> std::io::Result<()> {
@@ -21,10 +21,10 @@ fn main() -> std::io::Result<()> {
         .arg(arg!(-p --program ... "Show all segments"))
         .arg(arg!(-s --section ... "Show all sections"))
         .arg(arg!(-d --dump ... "Dump ELF/PE"))
-        .arg(arg!(-a --all ... "Show all ELF/PE data"))
+        .arg(arg!(-a --analyze ... "Analyze target binaly file"))
         .group(
             ArgGroup::new("run option")
-                .args(&["elfhead", "dump", "program", "section", "all"])
+                .args(&["elfhead", "dump", "program", "section", "analyze"])
                 .required(false),
         )
         .setting(AppSettings::DeriveDisplayOrder)
@@ -41,7 +41,7 @@ fn main() -> std::io::Result<()> {
             app.is_present("program"),
             app.is_present("section"),
             app.is_present("dump"),
-            app.is_present("all"),
+            app.is_present("analyze"),
         )
     };
     let exe_option = match flag_map() {
@@ -49,7 +49,7 @@ fn main() -> std::io::Result<()> {
         (_, true, _, _, _) => ExeOption::OPT_PROG,
         (_, _, true, _, _) => ExeOption::OPT_SECT,
         (_, _, _, true, _) => ExeOption::OPT_DISASEM,
-        (_, _, _, _, true) => ExeOption::OPT_SHOWALL,
+        (_, _, _, _, true) => ExeOption::OPT_ANALYSIS,
         _ => ExeOption::OPT_DEFAULT,
     };
 
@@ -73,7 +73,7 @@ fn main() -> std::io::Result<()> {
         ExeOption::OPT_PROG => loader.show_segment(),
         ExeOption::OPT_SECT => loader.show_section(),
         ExeOption::OPT_DISASEM => loader.disassemble(),
-        ExeOption::OPT_SHOWALL => loader.show_all_header(),
+        ExeOption::OPT_ANALYSIS => loader.analysis(),
     }
 
     Ok(())
