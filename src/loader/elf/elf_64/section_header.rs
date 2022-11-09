@@ -1,42 +1,42 @@
 use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
-use super::ElfHeader;
-use crate::loader::get_u32;
+use super::ElfHeader64;
+use crate::loader::{get_u32, get_u64};
 
-pub struct SectionHeader32 {
+pub struct SectionHeader64 {
     pub sh_name: String,
     sh_type: u32,
-    sh_flags: u32,
-    pub sh_addr: u32,
-    pub sh_offset: u32,
-    pub sh_size: u32,
+    sh_flags: u64,
+    pub sh_addr: u64,
+    pub sh_offset: u64,
+    pub sh_size: u64,
     sh_link: u32,
     sh_info: u32,
-    sh_addralign: u32,
-    sh_entsize: u32,
+    sh_addralign: u64,
+    sh_entsize: u64,
 }
 
-impl SectionHeader32 {
-    pub fn new(mmap: &[u8], elf_header: &ElfHeader) -> Vec<SectionHeader32> {
+impl SectionHeader64 {
+    pub fn new(mmap: &[u8], elf_header: &ElfHeader64) -> Vec<SectionHeader64> {
         let mut new_sect = Vec::new();
         let name_table =
-            elf_header.e_shoff + (elf_header.e_shentsize * elf_header.e_shstrndx) as u32;
+            elf_header.e_shoff + (elf_header.e_shentsize * elf_header.e_shstrndx) as u64;
         let name_table_off: usize = get_u32(mmap, (name_table as usize) + 16) as usize;
 
         for section_num in 0..elf_header.e_shnum {
             let section_head: usize =
-                (elf_header.e_shoff + (elf_header.e_shentsize * section_num) as u32) as usize;
+                (elf_header.e_shoff + (elf_header.e_shentsize * section_num) as u64) as usize;
 
-            new_sect.push(SectionHeader32 {
-                sh_name: SectionHeader32::get_sh_name(mmap, section_head, name_table_off),
+            new_sect.push(SectionHeader64 {
+                sh_name: SectionHeader64::get_sh_name(mmap, section_head, name_table_off),
                 sh_type: get_u32(mmap, section_head + 4),
-                sh_flags: get_u32(mmap, section_head + 8),
-                sh_addr: get_u32(mmap, section_head + 12),
-                sh_offset: get_u32(mmap, section_head + 16),
-                sh_size: get_u32(mmap, section_head + 20),
-                sh_link: get_u32(mmap, section_head + 24),
-                sh_info: get_u32(mmap, section_head + 28),
-                sh_addralign: get_u32(mmap, section_head + 32),
-                sh_entsize: get_u32(mmap, section_head + 34),
+                sh_flags: get_u64(mmap, section_head + 8),
+                sh_addr: get_u64(mmap, section_head + 16),
+                sh_offset: get_u64(mmap, section_head + 24),
+                sh_size: get_u64(mmap, section_head + 32),
+                sh_link: get_u32(mmap, section_head + 40),
+                sh_info: get_u32(mmap, section_head + 44),
+                sh_addralign: get_u64(mmap, section_head + 48),
+                sh_entsize: get_u64(mmap, section_head + 56),
             });
         }
 
@@ -96,7 +96,7 @@ impl SectionHeader32 {
     pub fn dump(&self, mmap: &[u8]) {
         const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
         const EXAMPLE_CODE_BITNESS: u32 = 64;
-        const EXAMPLE_CODE_RIP: u64 = 0x0000_0000_8000_0000;
+        let EXAMPLE_CODE_RIP: u64 = self.sh_addr;
         if self.sh_flags >> 2 & 1 == 1 {
             let bytes = &mmap[self.sh_offset as usize .. (self.sh_offset + self.sh_size) as usize];
             let mut decoder = Decoder::with_ip(

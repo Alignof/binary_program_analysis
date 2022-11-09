@@ -1,10 +1,11 @@
 mod elf_32;
+mod elf_64;
 
-use elf_32::elf_header::ElfHeader;
 use memmap::Mmap;
-use elf_32::program_header::ProgramHeader;
-use elf_32::section_header::SectionHeader32;
 use crate::loader::Loader;
+use elf_64::elf_header::ElfHeader64;
+use elf_64::program_header::ProgramHeader64;
+use elf_64::section_header::SectionHeader64;
 
 struct ElfIdentification {
     magic: [u8; 16],
@@ -47,17 +48,17 @@ impl ElfIdentification {
 }
 
 pub struct ElfLoader {
-    pub elf_header: ElfHeader,
-    pub prog_headers: Vec<ProgramHeader>,
-    pub sect_headers: Vec<SectionHeader32>,
+    pub elf_header: ElfHeader64,
+    pub prog_headers: Vec<ProgramHeader64>,
+    pub sect_headers: Vec<SectionHeader64>,
     pub mem_data: Mmap,
 }
 
 impl ElfLoader {
     pub fn new(mapped_data: Mmap) -> Box<dyn Loader> {
-        let new_elf = ElfHeader::new(&mapped_data);
-        let new_prog = ProgramHeader::new(&mapped_data, &new_elf);
-        let new_sect = SectionHeader32::new(&mapped_data, &new_elf);
+        let new_elf = ElfHeader64::new(&mapped_data);
+        let new_prog = ProgramHeader64::new(&mapped_data, &new_elf);
+        let new_sect = SectionHeader64::new(&mapped_data, &new_elf);
 
         Box::new(
             ElfLoader {

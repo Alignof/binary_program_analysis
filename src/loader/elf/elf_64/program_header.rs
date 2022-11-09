@@ -1,5 +1,5 @@
-use crate::loader::get_u32;
-use super::ElfHeader;
+use crate::loader::{get_u32, get_u64};
+use super::ElfHeader64;
 
 fn get_segment_type_name(segment_type: u32) -> &'static str {
     match segment_type {
@@ -16,34 +16,34 @@ fn get_segment_type_name(segment_type: u32) -> &'static str {
     }
 }
 
-pub struct ProgramHeader {
+pub struct ProgramHeader64 {
     pub p_type: u32,
     pub p_offset: u32,
-    pub p_vaddr: u32,
-    pub p_paddr: u32,
-    pub p_filesz: u32,
-    p_memsz: u32,
-    p_flags: u32,
-    p_align: u32,
+    pub p_vaddr: u64,
+    pub p_paddr: u64,
+    pub p_filesz: u64,
+    p_memsz: u64,
+    p_flags: u64,
+    p_align: u64,
 }
 
-impl ProgramHeader {
-    pub fn new(mmap: &[u8], elf_header: &ElfHeader) -> Vec<ProgramHeader> {
+impl ProgramHeader64 {
+    pub fn new(mmap: &[u8], elf_header: &ElfHeader64) -> Vec<ProgramHeader64> {
         let mut new_prog = Vec::new();
 
         for segment_num in 0..elf_header.e_phnum {
             let segment_start: usize =
-                (elf_header.e_phoff + (elf_header.e_phentsize * segment_num) as u32) as usize;
+                (elf_header.e_phoff + (elf_header.e_phentsize * segment_num) as u64) as usize;
 
-            new_prog.push(ProgramHeader {
+            new_prog.push(ProgramHeader64 {
                 p_type: get_u32(mmap, segment_start),
                 p_offset: get_u32(mmap, segment_start + 4),
-                p_vaddr: get_u32(mmap, segment_start + 8),
-                p_paddr: get_u32(mmap, segment_start + 12),
-                p_filesz: get_u32(mmap, segment_start + 16),
-                p_memsz: get_u32(mmap, segment_start + 20),
-                p_flags: get_u32(mmap, segment_start + 24),
-                p_align: get_u32(mmap, segment_start + 28),
+                p_vaddr: get_u64(mmap, segment_start + 8),
+                p_paddr: get_u64(mmap, segment_start + 16),
+                p_filesz: get_u64(mmap, segment_start + 24),
+                p_memsz: get_u64(mmap, segment_start + 32),
+                p_flags: get_u64(mmap, segment_start + 40),
+                p_align: get_u64(mmap, segment_start + 48),
             });
         }
 

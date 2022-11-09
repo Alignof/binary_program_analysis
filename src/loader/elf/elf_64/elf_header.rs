@@ -1,4 +1,4 @@
-use crate::loader::{get_u16, get_u32};
+use crate::loader::{get_u16, get_u32, get_u64};
 use crate::loader::elf::ElfIdentification;
 
 fn get_elf_type_name(elf_type: u16) -> &'static str {
@@ -12,14 +12,14 @@ fn get_elf_type_name(elf_type: u16) -> &'static str {
     }
 }
 
-pub struct ElfHeader {
+pub struct ElfHeader64 {
     e_ident: ElfIdentification,
     e_type: u16,
     e_machine: u16,
     e_version: u32,
-    pub e_entry: u32,
-    pub e_phoff: u32,
-    pub e_shoff: u32,
+    pub e_entry: u64,
+    pub e_phoff: u64,
+    pub e_shoff: u64,
     e_flags: u32,
     e_ehsize: u16,
     pub e_phentsize: u16,
@@ -29,24 +29,24 @@ pub struct ElfHeader {
     pub e_shstrndx: u16,
 }
 
-impl ElfHeader {
-    pub fn new(mmap: &[u8]) -> ElfHeader {
+impl ElfHeader64 {
+    pub fn new(mmap: &[u8]) -> ElfHeader64 {
         const ELF_HEADER_START: usize = 16;
-        ElfHeader {
+        ElfHeader64 {
             e_ident: ElfIdentification::new(mmap),
             e_type: get_u16(mmap, ELF_HEADER_START),
             e_machine: get_u16(mmap, ELF_HEADER_START + 2),
             e_version: get_u32(mmap, ELF_HEADER_START + 4),
-            e_entry: get_u32(mmap, ELF_HEADER_START + 8),
-            e_phoff: get_u32(mmap, ELF_HEADER_START + 12),
-            e_shoff: get_u32(mmap, ELF_HEADER_START + 16),
-            e_flags: get_u32(mmap, ELF_HEADER_START + 20),
-            e_ehsize: get_u16(mmap, ELF_HEADER_START + 24),
-            e_phentsize: get_u16(mmap, ELF_HEADER_START + 26),
-            e_phnum: get_u16(mmap, ELF_HEADER_START + 28),
-            e_shentsize: get_u16(mmap, ELF_HEADER_START + 30),
-            e_shnum: get_u16(mmap, ELF_HEADER_START + 32),
-            e_shstrndx: get_u16(mmap, ELF_HEADER_START + 34),
+            e_entry: get_u64(mmap, ELF_HEADER_START + 8),
+            e_phoff: get_u64(mmap, ELF_HEADER_START + 16),
+            e_shoff: get_u64(mmap, ELF_HEADER_START + 24),
+            e_flags: get_u32(mmap, ELF_HEADER_START + 32),
+            e_ehsize: get_u16(mmap, ELF_HEADER_START + 36),
+            e_phentsize: get_u16(mmap, ELF_HEADER_START + 38),
+            e_phnum: get_u16(mmap, ELF_HEADER_START + 40),
+            e_shentsize: get_u16(mmap, ELF_HEADER_START + 42),
+            e_shnum: get_u16(mmap, ELF_HEADER_START + 44),
+            e_shstrndx: get_u16(mmap, ELF_HEADER_START + 46),
         }
     }
 
