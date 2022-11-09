@@ -2,11 +2,11 @@ use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
 use crate::loader::{get_u16, get_u32, get_u64};
 
 pub struct SectionHeader {
-    name: String,
+    pub name: String,
     virtual_size: u32,
     virtual_address: u32,
-    size_of_raw_data: u32,
-    pointer_to_raw_data: u32,
+    pub size_of_raw_data: u32,
+    pub pointer_to_raw_data: u32,
     pointer_to_relocations: u32,
     pointer_to_linenumbers: u32,
     number_of_relocations: u16,
@@ -57,12 +57,11 @@ impl SectionHeader {
     }
 
     pub fn dump(&self, mmap: &[u8]) {
+        const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
+        const EXAMPLE_CODE_BITNESS: u32 = 64;
+        #[allow(non_snake_case)]
+        let EXAMPLE_CODE_RIP: u64 = self.virtual_address as u64;
         if self.characteristics & 0x00000020 != 0x0 {
-            const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
-            const EXAMPLE_CODE_BITNESS: u32 = 64;
-            #[allow(non_snake_case)]
-            let EXAMPLE_CODE_RIP: u64 = self.virtual_address as u64;
-
             let bytes = &mmap[self.pointer_to_raw_data as usize .. (self.pointer_to_raw_data + self.size_of_raw_data) as usize];
             let mut decoder = Decoder::with_ip(
                 EXAMPLE_CODE_BITNESS,
