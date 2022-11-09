@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
 use super::ElfHeader64;
 use crate::loader::{get_u32, get_u64};
 use crate::loader::elf::SectionHeader;
 
+#[derive(Debug)]
 pub struct SectionHeader64 {
     pub sh_name: String,
     sh_type: u32,
@@ -21,7 +23,7 @@ impl SectionHeader64 {
         let mut new_sect = Vec::new();
         let name_table =
             elf_header.e_shoff + (elf_header.e_shentsize * elf_header.e_shstrndx) as u64;
-        let name_table_off: usize = get_u32(mmap, (name_table as usize) + 16) as usize;
+        let name_table_off: usize = get_u64(mmap, (name_table as usize) + 24) as usize;
 
         for section_num in 0..elf_header.e_shnum {
             let section_head: usize =
@@ -140,8 +142,7 @@ impl SectionHeader for SectionHeader64 {
         }
     }
 
-    fn inst_analysis(&self, mmap: &[u8]) {
-        const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
+    fn inst_analysis(&self, inst_list: &mut HashMap<String, u32>, mmap: &[u8]) {
         const EXAMPLE_CODE_BITNESS: u32 = 64;
         let start_addr: u64 = self.sh_addr;
         if self.sh_flags >> 2 & 1 == 1 {
@@ -157,16 +158,12 @@ impl SectionHeader for SectionHeader64 {
             formatter.options_mut().set_digit_separator("_");
             formatter.options_mut().set_first_operand_char_index(10);
 
-            let mut output = String::new();
-
             let mut instruction = Instruction::default();
             while decoder.can_decode() {
                 decoder.decode_out(&mut instruction);
-
-                output.clear();
-                formatter.format(&instruction, &mut output);
-
-                print!("{:016X} ", instruction.ip());
+                println!("count: {:?} ", instruction.mnemonic());
+                *inst_list.entry(format!("{:?}", instruction.mnemonic()))
+                    .or_insert(0) += 1;
             }
         }
     }
