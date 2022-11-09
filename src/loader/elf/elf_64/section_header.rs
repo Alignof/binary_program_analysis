@@ -17,7 +17,7 @@ pub struct SectionHeader64 {
 }
 
 impl SectionHeader64 {
-    pub fn new(&self, mmap: &[u8], elf_header: &ElfHeader64) -> Vec<Box<Self>> {
+    pub fn new(mmap: &[u8], elf_header: &ElfHeader64) -> Vec<Self> {
         let mut new_sect = Vec::new();
         let name_table =
             elf_header.e_shoff + (elf_header.e_shentsize * elf_header.e_shstrndx) as u64;
@@ -28,9 +28,8 @@ impl SectionHeader64 {
                 (elf_header.e_shoff + (elf_header.e_shentsize * section_num) as u64) as usize;
 
             new_sect.push(
-                Box::new(
                     SectionHeader64 {
-                        sh_name: self.get_sh_name(mmap, section_head, name_table_off),
+                        sh_name: Self::get_sh_name(mmap, section_head, name_table_off),
                         sh_type: get_u32(mmap, section_head + 4),
                         sh_flags: get_u64(mmap, section_head + 8),
                         sh_addr: get_u64(mmap, section_head + 16),
@@ -41,7 +40,6 @@ impl SectionHeader64 {
                         sh_addralign: get_u64(mmap, section_head + 48),
                         sh_entsize: get_u64(mmap, section_head + 56),
                     }
-                )
             );
         }
 
@@ -50,7 +48,7 @@ impl SectionHeader64 {
 }
 
 impl SectionHeader for SectionHeader64 {
-    fn get_sh_name(&self, mmap: &[u8], section_head: usize, name_table_head: usize) -> String {
+    fn get_sh_name(mmap: &[u8], section_head: usize, name_table_head: usize) -> String {
         let name_id: usize = get_u32(mmap, section_head) as usize;
         let mut sh_name: String = String::new();
 

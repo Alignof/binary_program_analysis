@@ -49,8 +49,8 @@ impl ElfIdentification {
 
 pub struct ElfLoader {
     pub elf_header: Box<dyn ElfHeader>,
-    pub prog_headers: Vec<Box<dyn ProgramHeader>>,
-    pub sect_headers: Vec<Box<dyn SectionHeader>>,
+    pub prog_headers: Vec<ProgramHeader64>,
+    pub sect_headers: Vec<SectionHeader64>,
     pub mem_data: Mmap,
 }
 
@@ -64,7 +64,7 @@ trait ProgramHeader {
 }
 
 trait SectionHeader {
-    fn get_sh_name(&self, mmap: &[u8], section_head: usize, name_table_head: usize) -> String;
+    fn get_sh_name(mmap: &[u8], section_head: usize, name_table_head: usize) -> String;
     fn type_to_str(&self) -> &'static str;
     fn show(&self, id: usize);
     fn dump(&self, mmap: &[u8]);
@@ -75,7 +75,7 @@ impl ElfLoader {
     pub fn new(mapped_data: Mmap) -> Box<dyn Loader> {
         let new_elf = ElfHeader64::new(&mapped_data);
         let new_prog = ProgramHeader64::new(&mapped_data, &new_elf);
-        let new_sect = SectionHeader64::new(&Self, &mapped_data, &new_elf);
+        let new_sect = SectionHeader64::new(&mapped_data, &new_elf);
 
         Box::new(
             ElfLoader {

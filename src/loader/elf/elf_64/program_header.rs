@@ -29,7 +29,7 @@ pub struct ProgramHeader64 {
 }
 
 impl ProgramHeader64 {
-    pub fn new(mmap: &[u8], elf_header: &ElfHeader64) -> Vec<Box<Self>> {
+    pub fn new(mmap: &[u8], elf_header: &ElfHeader64) -> Vec<Self> {
         let mut new_prog = Vec::new();
 
         for segment_num in 0..elf_header.e_phnum {
@@ -37,7 +37,6 @@ impl ProgramHeader64 {
                 (elf_header.e_phoff + (elf_header.e_phentsize * segment_num) as u64) as usize;
 
             new_prog.push(
-                Box::new(
                     ProgramHeader64 {
                         p_type: get_u32(mmap, segment_start),
                         p_offset: get_u32(mmap, segment_start + 4),
@@ -48,7 +47,6 @@ impl ProgramHeader64 {
                         p_flags: get_u64(mmap, segment_start + 40),
                         p_align: get_u64(mmap, segment_start + 48),
                     }
-                )
             );
         }
 
