@@ -73,26 +73,29 @@ impl ElfLoader {
                 None
             });
 
-        const ST_SIZE: usize = 32;
+        const ST_SIZE: usize = 24;
         let mut functions: Vec<Function> = Vec::new();
         if let (Some(symtab), Some(strtab)) = (symtab, strtab) {
             for symtab_off in (symtab.sh_offset .. symtab.sh_offset + symtab.sh_size).step_by(ST_SIZE) {
-                let st_name_off = get_u32(mmap, symtab_off as usize);
-                let st_name = mmap[(strtab.sh_offset + st_name_off as u64) as usize ..]
-                    .iter()
-                    .take_while(|c| **c as char != '\0')
-                    .map(|c| *c as char)
-                    .collect::<String>();
-                let st_addr = get_u64(mmap, (symtab_off + 16) as usize);
-                let st_size = get_u64(mmap, (symtab_off + 24) as usize);
+                let st_info = mmap[symtab_off as usize + 4];
+                if st_info & 0xf == 2 {
+                    let st_name_off = get_u32(mmap, symtab_off as usize);
+                    let st_name = mmap[(strtab.sh_offset + st_name_off as u64) as usize ..]
+                        .iter()
+                        .take_while(|c| **c as char != '\0')
+                        .map(|c| *c as char)
+                        .collect::<String>();
+                    let st_addr = get_u64(mmap, (symtab_off + 8) as usize);
+                    let st_size = get_u64(mmap, (symtab_off + 16) as usize);
 
-                functions.push(
-                    Function {
-                        name: st_name,
-                        addr: st_addr,
-                        size: st_size,
-                    }
-                );
+                    functions.push(
+                        Function {
+                            name: st_name,
+                            addr: st_addr,
+                            size: st_size,
+                        }
+                    );
+                }
             }
         }
 
@@ -179,10 +182,10 @@ impl Loader for ElfLoader {
     }
 
     fn analysis(&self) {
-        let mut inst_list = HashMap::new();
-        for sect in self.sect_headers.iter() {
-            sect.inst_analysis(&mut inst_list, &self.mem_data);
+        for func in self.functions.iter() {
+            let mut inst_list = HashMap::new();
+            func.inst_analysis(&mut inst_list, &self.mem_data);
+            println!("{:#?}", inst_list);
         }
-        println!("{:#?}", inst_list);
     }
 }
