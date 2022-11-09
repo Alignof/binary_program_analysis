@@ -2,6 +2,7 @@ mod msdos_header;
 mod nt_headers;
 mod section_header;
 
+use std::collections::HashMap;
 use memmap::Mmap;
 use msdos_header::MsDosHeader;
 use nt_headers::NtHeader;
@@ -61,6 +62,13 @@ impl Loader for PeLoader {
             sect.show();
         }
 
+    }
+
+    fn analysis(&self) {
+        let inst_list = HashMap::new();
+        for sect in self.sect_headers.iter() {
+            sect.inst_analysis(&inst_list, &self.mem_data);
+        }
     }
 }
 

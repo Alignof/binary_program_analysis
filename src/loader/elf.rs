@@ -1,6 +1,7 @@
 mod elf_32;
 mod elf_64;
 
+use std::collections::HashMap;
 use memmap::Mmap;
 use crate::loader::Loader;
 use elf_64::elf_header::ElfHeader64;
@@ -54,23 +55,6 @@ pub struct ElfLoader {
     pub mem_data: Mmap,
 }
 
-trait ElfHeader {
-    fn show(&self);
-}
-
-trait ProgramHeader {
-    fn show(&self, id: usize);
-    fn dump(&self, mmap: &[u8]);
-}
-
-trait SectionHeader {
-    fn get_sh_name(mmap: &[u8], section_head: usize, name_table_head: usize) -> String;
-    fn type_to_str(&self) -> &'static str;
-    fn show(&self, id: usize);
-    fn dump(&self, mmap: &[u8]);
-    fn inst_analysis(&self, mmap: &[u8]);
-}
-
 impl ElfLoader {
     pub fn new(mapped_data: Mmap) -> Box<dyn Loader> {
         let new_elf = ElfHeader64::new(&mapped_data);
@@ -86,6 +70,23 @@ impl ElfLoader {
             }
         )
     }
+}
+
+trait ElfHeader {
+    fn show(&self);
+}
+
+trait ProgramHeader {
+    fn show(&self, id: usize);
+    fn dump(&self, mmap: &[u8]);
+}
+
+trait SectionHeader {
+    fn get_sh_name(mmap: &[u8], section_head: usize, name_table_head: usize) -> String;
+    fn type_to_str(&self) -> &'static str;
+    fn show(&self, id: usize);
+    fn dump(&self, mmap: &[u8]);
+    fn inst_analysis(&self, inst_list: &HashMap<String, u32>, mmap: &[u8]);
 }
 
 impl Loader for ElfLoader {
@@ -129,6 +130,13 @@ impl Loader for ElfLoader {
 
         for (id, sect) in self.sect_headers.iter().enumerate() {
             sect.show(id);
+        }
+    }
+
+    fn analysis(&self) {
+        let inst_list = HashMap::new();
+        for sect in self.sect_headers.iter() {
+            sect.inst_analysis(&inst_list, &self.mem_data);
         }
     }
 }

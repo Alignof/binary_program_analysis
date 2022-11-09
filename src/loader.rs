@@ -32,4 +32,5 @@ pub trait Loader {
     fn show_section(&self);
     fn disassemble(&self);
     fn show_all_header(&self);
+    fn analysis(&self);
 }
