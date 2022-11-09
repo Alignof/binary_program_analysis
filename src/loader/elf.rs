@@ -184,8 +184,32 @@ impl Loader for ElfLoader {
     fn analysis(&self) {
         for func in self.functions.iter() {
             let mut inst_list = HashMap::new();
-            func.inst_analysis(&mut inst_list, &self.mem_data);
-            println!("{:#?}", inst_list);
+            let call_addrs = func.inst_analysis(&mut inst_list, &self.mem_data);
+
+            let mut inst_list = inst_list
+                    .iter()
+                    .collect::<Vec<(&String, &i32)>>();
+            inst_list.sort_by(|a, b| (-(a.1)).cmp(&(-(b.1))));
+            for t in inst_list.iter() {
+                println!("{}: {}", t.0, t.1);
+            }
+
+            if call_addrs.len() > 0 {
+                print!("calling functions: ");
+                for call_addr in call_addrs {
+                    let call_func = self.functions.iter().find_map(|f| {
+                        if f.addr == call_addr {
+                            Some(f.name.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or(format!("{}", call_addr));
+                    print!("func_{} ", call_func);
+                }
+                println!();
+            }
+            println!();
         }
     }
 }

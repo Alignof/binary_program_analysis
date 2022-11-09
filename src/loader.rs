@@ -37,7 +37,7 @@ pub struct Function {
 }
 
 impl Function {
-    pub fn inst_analysis(&self, inst_list: &mut HashMap<String, u32>, mmap: &[u8]) {
+    pub fn inst_analysis(&self, inst_list: &mut HashMap<String, i32>, mmap: &[u8]) -> Vec<u64> {
         println!("<function: {}>", self.name);
         const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
         const EXAMPLE_CODE_BITNESS: u32 = 64;
@@ -56,6 +56,7 @@ impl Function {
 
         let mut output = String::new();
         let mut instruction = Instruction::default();
+        let mut call_addrs = Vec::new();
         while decoder.can_decode() {
             decoder.decode_out(&mut instruction);
             output.clear();
@@ -73,9 +74,17 @@ impl Function {
                 }
             }
             println!(" {}", output);
+
             *inst_list.entry(format!("{:?}", instruction.mnemonic()))
                 .or_insert(0) += 1;
+
+            if instruction.is_call_near() || instruction.is_call_far() ||
+               instruction.is_call_near_indirect () || instruction.is_call_far_indirect() {
+                call_addrs.push(instruction.memory_displacement64());
+            }
         }
+
+        call_addrs
     }
 }
 
