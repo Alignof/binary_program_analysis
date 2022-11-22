@@ -57,7 +57,24 @@ pub struct ElfLoader {
 }
 
 impl ElfLoader {
-    fn create_func_table(mmap: &[u8], sect_headers: &Vec<SectionHeader64>) -> Vec<Function> {
+    fn addr2offset(prog_headers: &Vec<ProgramHeader64>, addr: u64) -> Option<u64> {
+        let mut addr_table = Vec::new();
+        for seg in prog_headers {
+            addr_table.push((seg.p_offset, seg.p_paddr));
+        }
+
+        addr_table.sort_by(|x, y| (x.1).cmp(&y.1));
+        for w in (&addr_table).windows(2) {
+            let (a, z) = (w[0], w[1]);
+            if a.1 <= addr && addr < z.1 {
+                return Some(a.0 + (addr - a.1));
+            }
+        }
+
+        None
+    }
+
+    fn create_func_table(mmap: &[u8], prog_headers: &Vec<ProgramHeader64>, sect_headers: &Vec<SectionHeader64>) -> Vec<Function> {
         let symtab = sect_headers.iter()
             .find_map(|s| {
                 if s.sh_name == ".symtab" {
@@ -91,7 +108,7 @@ impl ElfLoader {
                     functions.push(
                         Function {
                             name: st_name,
-                            addr: st_addr,
+                            addr: Self::addr2offset(prog_headers, st_addr).unwrap(),
                             size: st_size,
                         }
                     );
@@ -106,7 +123,7 @@ impl ElfLoader {
         let new_elf = ElfHeader64::new(&mapped_data);
         let new_prog = ProgramHeader64::new(&mapped_data, &new_elf);
         let new_sect = SectionHeader64::new(&mapped_data, &new_elf);
-        let new_func = Self::create_func_table(&mapped_data, &new_sect);
+        let new_func = Self::create_func_table(&mapped_data, &new_prog, &new_sect);
 
         Box::new(
             ElfLoader {
@@ -182,13 +199,19 @@ impl Loader for ElfLoader {
     }
 
     fn analysis(&self) {
+        let mut inst_list_overall = HashMap::new();
         for func in self.functions.iter() {
             let mut inst_list = HashMap::new();
             let call_addrs = func.inst_analysis(&mut inst_list, &self.mem_data);
 
+            for (name, count) in inst_list.clone() {
+                *inst_list_overall.entry(name)
+                    .or_insert(0) += count;
+            }
+
             let mut inst_list = inst_list
-                    .iter()
-                    .collect::<Vec<(&String, &i32)>>();
+                .iter()
+                .collect::<Vec<(&String, &i32)>>();
             inst_list.sort_by(|a, b| (-(a.1)).cmp(&(-(b.1))));
             for t in inst_list.iter() {
                 println!("{}: {}", t.0, t.1);
@@ -211,5 +234,19 @@ impl Loader for ElfLoader {
             }
             println!();
         }
+
+        println!("======================");
+        let mut inst_count = 0;
+        let mut inst_list_overall = inst_list_overall
+            .iter()
+            .collect::<Vec<(&String, &i32)>>();
+        inst_list_overall.sort_by(|a, b| (-(a.1)).cmp(&(-(b.1))));
+        for t in inst_list_overall.iter() {
+            inst_count += t.1;
+            println!("{}: {}", t.0, t.1);
+        }
+        println!("-----");
+        println!("instructions: {}", inst_count);
+        println!("======================");
     }
 }
