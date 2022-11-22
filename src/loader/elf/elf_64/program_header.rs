@@ -1,5 +1,6 @@
-use super::get_u32;
-use super::ElfHeader;
+use crate::loader::{get_u32, get_u64};
+use super::ElfHeader64;
+use crate::loader::elf::ProgramHeader;
 
 fn get_segment_type_name(segment_type: u32) -> &'static str {
     match segment_type {
@@ -16,41 +17,47 @@ fn get_segment_type_name(segment_type: u32) -> &'static str {
     }
 }
 
-pub struct ProgramHeader {
+pub struct ProgramHeader64 {
     pub p_type: u32,
-    pub p_offset: u32,
-    pub p_vaddr: u32,
-    pub p_paddr: u32,
-    pub p_filesz: u32,
-    p_memsz: u32,
     p_flags: u32,
-    p_align: u32,
+    pub p_offset: u64,
+    pub p_vaddr: u64,
+    pub p_paddr: u64,
+    pub p_filesz: u64,
+    p_memsz: u64,
+    p_align: u64,
 }
 
-impl ProgramHeader {
-    pub fn new(mmap: &[u8], elf_header: &ElfHeader) -> Vec<ProgramHeader> {
+impl ProgramHeader64 {
+    pub fn new(mmap: &[u8], elf_header: &ElfHeader64) -> Vec<Self> {
         let mut new_prog = Vec::new();
 
         for segment_num in 0..elf_header.e_phnum {
             let segment_start: usize =
-                (elf_header.e_phoff + (elf_header.e_phentsize * segment_num) as u32) as usize;
+                (elf_header.e_phoff + (elf_header.e_phentsize * segment_num) as u64) as usize;
 
-            new_prog.push(ProgramHeader {
-                p_type: get_u32(mmap, segment_start),
-                p_offset: get_u32(mmap, segment_start + 4),
-                p_vaddr: get_u32(mmap, segment_start + 8),
-                p_paddr: get_u32(mmap, segment_start + 12),
-                p_filesz: get_u32(mmap, segment_start + 16),
-                p_memsz: get_u32(mmap, segment_start + 20),
-                p_flags: get_u32(mmap, segment_start + 24),
-                p_align: get_u32(mmap, segment_start + 28),
-            });
+            new_prog.push(
+                    ProgramHeader64 {
+                        p_type: get_u32(mmap, segment_start),
+                        p_flags: get_u32(mmap, segment_start + 4),
+                        p_offset: get_u64(mmap, segment_start + 8),
+                        p_vaddr: get_u64(mmap, segment_start + 16),
+                        p_paddr: get_u64(mmap, segment_start + 24),
+                        p_filesz: get_u64(mmap, segment_start + 32),
+                        p_memsz: get_u64(mmap, segment_start + 48),
+                        p_align: get_u64(mmap, segment_start + 56),
+                    }
+            );
         }
 
         new_prog
     }
 
-    pub fn show(&self, id: usize) {
+
+}
+
+impl ProgramHeader for ProgramHeader64 {
+    fn show(&self, id: usize) {
         println!("============== program header {}==============", id + 1);
         println!("p_type:\t\t{}", get_segment_type_name(self.p_type));
         println!("p_offset:\t0x{:x}", self.p_offset);
@@ -62,8 +69,8 @@ impl ProgramHeader {
         println!("p_align:\t0x{:x}", self.p_align);
     }
 
-    pub fn segment_dump(&self, mmap: &[u8]) {
-        for (block, dump_part) in (self.p_offset..self.p_offset + self.p_memsz as u32)
+    fn dump(&self, mmap: &[u8]) {
+        for (block, dump_part) in (self.p_offset..self.p_offset + self.p_memsz)
             .step_by(4)
             .enumerate()
         {

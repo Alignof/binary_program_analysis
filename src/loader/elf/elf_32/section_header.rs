@@ -1,7 +1,8 @@
+use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
 use super::ElfHeader;
-use super::get_u32;
+use crate::loader::get_u32;
 
-pub struct SectionHeader {
+pub struct SectionHeader32 {
     pub sh_name: String,
     sh_type: u32,
     sh_flags: u32,
@@ -14,8 +15,8 @@ pub struct SectionHeader {
     sh_entsize: u32,
 }
 
-impl SectionHeader {
-    pub fn new(mmap: &[u8], elf_header: &ElfHeader) -> Vec<SectionHeader> {
+impl SectionHeader32 {
+    pub fn new(mmap: &[u8], elf_header: &ElfHeader) -> Vec<SectionHeader32> {
         let mut new_sect = Vec::new();
         let name_table =
             elf_header.e_shoff + (elf_header.e_shentsize * elf_header.e_shstrndx) as u32;
@@ -25,8 +26,8 @@ impl SectionHeader {
             let section_head: usize =
                 (elf_header.e_shoff + (elf_header.e_shentsize * section_num) as u32) as usize;
 
-            new_sect.push(SectionHeader {
-                sh_name: SectionHeader::get_sh_name(mmap, section_head, name_table_off),
+            new_sect.push(SectionHeader32 {
+                sh_name: SectionHeader32::get_sh_name(mmap, section_head, name_table_off),
                 sh_type: get_u32(mmap, section_head + 4),
                 sh_flags: get_u32(mmap, section_head + 8),
                 sh_addr: get_u32(mmap, section_head + 12),
@@ -92,15 +93,45 @@ impl SectionHeader {
         println!("sh_entsize:\t{}", self.sh_entsize);
     }
 
-    pub fn section_dump(&self, mmap: &[u8]) {
-        for (block, dump_part) in (self.sh_offset..self.sh_offset + self.sh_size as u32)
-            .step_by(4)
-            .enumerate()
-        {
-            if block % 8 == 0 {
-                println!()
+    pub fn dump(&self, mmap: &[u8]) {
+        const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
+        const EXAMPLE_CODE_BITNESS: u32 = 64;
+        const EXAMPLE_CODE_RIP: u64 = 0x0000_0000_8000_0000;
+        if self.sh_flags >> 2 & 1 == 1 {
+            let bytes = &mmap[self.sh_offset as usize .. (self.sh_offset + self.sh_size) as usize];
+            let mut decoder = Decoder::with_ip(
+                EXAMPLE_CODE_BITNESS,
+                bytes,
+                EXAMPLE_CODE_RIP,
+                DecoderOptions::NONE
+            );
+            let mut formatter = NasmFormatter::new();
+
+            formatter.options_mut().set_digit_separator("`");
+            formatter.options_mut().set_first_operand_char_index(10);
+
+            let mut output = String::new();
+
+            let mut instruction = Instruction::default();
+            while decoder.can_decode() {
+                decoder.decode_out(&mut instruction);
+
+                output.clear();
+                formatter.format(&instruction, &mut output);
+
+                print!("{:016X} ", instruction.ip());
+                let start_index = (instruction.ip() - EXAMPLE_CODE_RIP) as usize;
+                let instr_bytes = &bytes[start_index..start_index + instruction.len()];
+                for b in instr_bytes.iter() {
+                    print!("{:02X}", b);
+                }
+                if instr_bytes.len() < HEXBYTES_COLUMN_BYTE_LENGTH {
+                    for _ in 0..HEXBYTES_COLUMN_BYTE_LENGTH - instr_bytes.len() {
+                        print!("  ");
+                    }
+                }
+                println!(" {}", output);
             }
-            print!("{:08x} ", get_u32(mmap, dump_part as usize));
         }
     }
 }

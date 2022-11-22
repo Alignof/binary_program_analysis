@@ -1,5 +1,4 @@
-mod elf;
-mod pe;
+mod loader;
 
 use clap::{arg, AppSettings, ArgGroup};
 use memmap::Mmap;
@@ -11,8 +10,8 @@ pub enum ExeOption {
     OPT_ELFHEAD,
     OPT_PROG,
     OPT_SECT,
-    OPT_DUMP,
-    OPT_SHOWALL,
+    OPT_DISASEM,
+    OPT_ANALYSIS,
 }
 
 fn main() -> std::io::Result<()> {
@@ -22,10 +21,10 @@ fn main() -> std::io::Result<()> {
         .arg(arg!(-p --program ... "Show all segments"))
         .arg(arg!(-s --section ... "Show all sections"))
         .arg(arg!(-d --dump ... "Dump ELF/PE"))
-        .arg(arg!(-a --all ... "Show all ELF/PE data"))
+        .arg(arg!(-a --analyze ... "Analyze target binaly file"))
         .group(
             ArgGroup::new("run option")
-                .args(&["elfhead", "dump", "program", "section", "all"])
+                .args(&["elfhead", "dump", "program", "section", "analyze"])
                 .required(false),
         )
         .setting(AppSettings::DeriveDisplayOrder)
@@ -42,15 +41,15 @@ fn main() -> std::io::Result<()> {
             app.is_present("program"),
             app.is_present("section"),
             app.is_present("dump"),
-            app.is_present("all"),
+            app.is_present("analyze"),
         )
     };
     let exe_option = match flag_map() {
         (true, _, _, _, _) => ExeOption::OPT_ELFHEAD,
         (_, true, _, _, _) => ExeOption::OPT_PROG,
         (_, _, true, _, _) => ExeOption::OPT_SECT,
-        (_, _, _, true, _) => ExeOption::OPT_DUMP,
-        (_, _, _, _, true) => ExeOption::OPT_SHOWALL,
+        (_, _, _, true, _) => ExeOption::OPT_DISASEM,
+        (_, _, _, _, true) => ExeOption::OPT_ANALYSIS,
         _ => ExeOption::OPT_DEFAULT,
     };
 
@@ -59,30 +58,23 @@ fn main() -> std::io::Result<()> {
 
     const ELF_HEADER_MAGIC: [u8; 4] = [0x7f, 0x45, 0x4c, 0x46];
     const PE_HEADER_MAGIC: [u8; 2] = [0x4d, 0x5a];
-    if mapped_data[0..4] == ELF_HEADER_MAGIC {
-        let loader = elf::ElfLoader::new(mapped_data);
 
-        match exe_option {
-            ExeOption::OPT_DEFAULT => loader.header_show(),
-            ExeOption::OPT_ELFHEAD => loader.header_show(),
-            ExeOption::OPT_DUMP => loader.dump_section(),
-            ExeOption::OPT_SECT => loader.dump_section(),
-            ExeOption::OPT_PROG => loader.dump_segment(),
-            ExeOption::OPT_SHOWALL => loader.show_all_header(),
-        }
+    let loader = if mapped_data[0..4] == ELF_HEADER_MAGIC {
+        loader::elf::ElfLoader::new(mapped_data)
     } else if mapped_data[0..2] == PE_HEADER_MAGIC {
-        let loader = pe::PeLoader::new(mapped_data);
-        match exe_option {
-            ExeOption::OPT_DEFAULT => loader.header_show(),
-            ExeOption::OPT_ELFHEAD => loader.header_show(),
-            ExeOption::OPT_SECT => loader.dump_section(),
-            ExeOption::OPT_DUMP => loader.dump_section(),
-            ExeOption::OPT_SHOWALL => loader.show_all_header(),
-            _ => loader.header_show(),
-        }
+        loader::pe::PeLoader::new(mapped_data)
     } else {
         panic!("unrecognized file format")
     };
+
+    match exe_option {
+        ExeOption::OPT_DEFAULT => loader.header_show(),
+        ExeOption::OPT_ELFHEAD => loader.header_show(),
+        ExeOption::OPT_PROG => loader.show_segment(),
+        ExeOption::OPT_SECT => loader.show_section(),
+        ExeOption::OPT_DISASEM => loader.disassemble(),
+        ExeOption::OPT_ANALYSIS => loader.analysis(),
+    }
 
     Ok(())
 }

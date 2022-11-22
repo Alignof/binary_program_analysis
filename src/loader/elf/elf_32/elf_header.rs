@@ -1,4 +1,5 @@
-use crate::elf::{get_u16, get_u32};
+use crate::loader::{get_u16, get_u32};
+use crate::loader::elf::ElfIdentification;
 
 fn get_elf_type_name(elf_type: u16) -> &'static str {
     match elf_type {
@@ -8,46 +9,6 @@ fn get_elf_type_name(elf_type: u16) -> &'static str {
         3 => "ET_DYN",
         4 => "ET_CORE",
         _ => "unknown type",
-    }
-}
-
-struct ElfIdentification {
-    magic: [u8; 16],
-    class: u8,
-    endian: u8,
-    version: u8,
-    os_abi: u8,
-    os_abi_ver: u8,
-}
-
-impl ElfIdentification {
-    fn new(mmap: &[u8]) -> ElfIdentification {
-        let mut magic: [u8; 16] = [0; 16];
-        for (i, m) in mmap[0..16].iter().enumerate() {
-            magic[i] = *m;
-        }
-
-        ElfIdentification {
-            magic,
-            class: mmap[4],
-            endian: mmap[5],
-            version: mmap[6],
-            os_abi: mmap[7],
-            os_abi_ver: mmap[8],
-        }
-    }
-
-    fn show(&self) {
-        print!("magic:\t");
-        for byte in self.magic.iter() {
-            print!("{:02x} ", byte);
-        }
-        println!();
-        println!("class:\t\t{:?}", self.class);
-        println!("endian:\t\t{:?}", self.endian);
-        println!("version:\t{:?}", self.version);
-        println!("os_abi:\t\t{:?}", self.os_abi);
-        println!("os_abi_ver:\t{:?}", self.os_abi_ver);
     }
 }
 
@@ -105,25 +66,5 @@ impl ElfHeader {
         println!("e_shentsize:\t{} (bytes)", self.e_shentsize);
         println!("e_shnum:\t{}", self.e_shnum);
         println!("e_shstrndx:\t{}", self.e_shstrndx);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::fs::File;
-    use memmap::Mmap;
-    use super::super::*;
-
-    #[test]
-    fn elf_header_test() {
-        let filename = "./HelloWorld";
-        let file = File::open(filename).unwrap();
-        let mapped_data = unsafe { Mmap::map(&file).unwrap() };
-        let loader = ElfLoader::new(mapped_data);
-
-        assert_eq!(loader.elf_header.e_type, 2);
-        assert_eq!(loader.elf_header.e_flags, 1);
-        assert_eq!(loader.elf_header.e_version, 1);
-        assert_eq!(loader.elf_header.e_machine, 243);
     }
 }
