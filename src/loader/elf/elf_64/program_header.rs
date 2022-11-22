@@ -19,12 +19,12 @@ fn get_segment_type_name(segment_type: u32) -> &'static str {
 
 pub struct ProgramHeader64 {
     pub p_type: u32,
-    pub p_offset: u32,
+    p_flags: u32,
+    pub p_offset: u64,
     pub p_vaddr: u64,
     pub p_paddr: u64,
     pub p_filesz: u64,
     p_memsz: u64,
-    p_flags: u64,
     p_align: u64,
 }
 
@@ -39,13 +39,13 @@ impl ProgramHeader64 {
             new_prog.push(
                     ProgramHeader64 {
                         p_type: get_u32(mmap, segment_start),
-                        p_offset: get_u32(mmap, segment_start + 4),
-                        p_vaddr: get_u64(mmap, segment_start + 8),
-                        p_paddr: get_u64(mmap, segment_start + 16),
-                        p_filesz: get_u64(mmap, segment_start + 24),
-                        p_memsz: get_u64(mmap, segment_start + 32),
-                        p_flags: get_u64(mmap, segment_start + 40),
-                        p_align: get_u64(mmap, segment_start + 48),
+                        p_flags: get_u32(mmap, segment_start + 4),
+                        p_offset: get_u64(mmap, segment_start + 8),
+                        p_vaddr: get_u64(mmap, segment_start + 16),
+                        p_paddr: get_u64(mmap, segment_start + 24),
+                        p_filesz: get_u64(mmap, segment_start + 32),
+                        p_memsz: get_u64(mmap, segment_start + 48),
+                        p_align: get_u64(mmap, segment_start + 56),
                     }
             );
         }
@@ -70,7 +70,7 @@ impl ProgramHeader for ProgramHeader64 {
     }
 
     fn dump(&self, mmap: &[u8]) {
-        for (block, dump_part) in (self.p_offset..self.p_offset + self.p_memsz as u32)
+        for (block, dump_part) in (self.p_offset..self.p_offset + self.p_memsz)
             .step_by(4)
             .enumerate()
         {
