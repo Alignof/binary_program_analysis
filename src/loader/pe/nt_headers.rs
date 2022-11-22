@@ -66,7 +66,10 @@ impl NtHeader {
     pub fn sect_off(&self) -> usize {
         const MAGIC_SIZE: usize = 4;
         const FILEHEADER_SIZE: usize = 20;
-        self.offset + MAGIC_SIZE + FILEHEADER_SIZE + self.file_header.size_of_optional_header as usize
+        self.offset
+            + MAGIC_SIZE
+            + FILEHEADER_SIZE
+            + self.file_header.size_of_optional_header as usize
     }
 
     pub fn sect_num(&self) -> usize {
@@ -101,11 +104,13 @@ impl FileHeader {
         println!("time_date_stamp:\t{:#x}", self.time_date_stamp);
         println!("pointer_to_symtab:\t{:#x}", self.pointer_to_symtab);
         println!("number_of_symbols:\t{:#x}", self.number_of_symbols);
-        println!("size_of_optional_header:\t{:#x}", self.size_of_optional_header);
+        println!(
+            "size_of_optional_header:\t{:#x}",
+            self.size_of_optional_header
+        );
         println!("characteristics:\t{:#x}", self.characteristics);
     }
 }
-
 
 impl OptionalHeader {
     pub fn new(mmap: &[u8], offset: usize) -> OptionalHeader {
@@ -150,21 +155,42 @@ impl OptionalHeader {
         println!("major_linker_version:\t{:#x}", self.major_linker_version);
         println!("minor_linker_version:\t{:#x}", self.minor_linker_version);
         println!("size_of_code:\t{:#x}", self.size_of_code);
-        println!("size_of_initialized_data:\t{:#x}", self.size_of_initialized_data);
-        println!("size_of_uninitialized_data:\t{:#x}", self.size_of_uninitialized_data);
-        println!("address_of_entry_point:\t{:#x}", self.address_of_entry_point);
+        println!(
+            "size_of_initialized_data:\t{:#x}",
+            self.size_of_initialized_data
+        );
+        println!(
+            "size_of_uninitialized_data:\t{:#x}",
+            self.size_of_uninitialized_data
+        );
+        println!(
+            "address_of_entry_point:\t{:#x}",
+            self.address_of_entry_point
+        );
         println!("base_of_code:\t{:#x}", self.base_of_code);
         println!("base_of_data:\t{:#x}", self.base_of_data);
 
         println!("image_base:\t{:#x}", self.image_base);
         println!("section_alignment:\t{:#x}", self.section_alignment);
         println!("file_alignment:\t{:#x}", self.file_alignment);
-        println!("major_operating_system_version:\t{:#x}", self.major_operating_system_version);
-        println!("minor_operating_system_version:\t{:#x}", self.minor_operating_system_version);
+        println!(
+            "major_operating_system_version:\t{:#x}",
+            self.major_operating_system_version
+        );
+        println!(
+            "minor_operating_system_version:\t{:#x}",
+            self.minor_operating_system_version
+        );
         println!("major_image_version:\t{:#x}", self.major_image_version);
         println!("minor_image_version:\t{:#x}", self.minor_image_version);
-        println!("major_subsystem_version:\t{:#x}", self.major_subsystem_version);
-        println!("minor_subsystem_version:\t{:#x}", self.minor_subsystem_version);
+        println!(
+            "major_subsystem_version:\t{:#x}",
+            self.major_subsystem_version
+        );
+        println!(
+            "minor_subsystem_version:\t{:#x}",
+            self.minor_subsystem_version
+        );
         println!("win32_version_value:\t{:#x}", self.win32_version_value);
         println!("size_of_image:\t{:#x}", self.size_of_image);
         println!("size_of_headers:\t{:#x}", self.size_of_headers);
@@ -176,7 +202,10 @@ impl OptionalHeader {
         println!("size_of_heap_reserve:\t{:#x}", self.size_of_heap_reserve);
         println!("size_of_heap_commit:\t{:#x}", self.size_of_heap_commit);
         println!("loader_flags:\t{:#x}", self.loader_flags);
-        println!("number_of_rva_and_sizes:\t{:#x}", self.number_of_rva_and_sizes);
+        println!(
+            "number_of_rva_and_sizes:\t{:#x}",
+            self.number_of_rva_and_sizes
+        );
         println!("_data_directory:\t{:#x}", self._data_directory);
     }
 }

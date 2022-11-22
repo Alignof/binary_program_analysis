@@ -1,12 +1,12 @@
 mod elf_32;
 mod elf_64;
 
-use std::collections::HashMap;
-use memmap::Mmap;
-use crate::loader::{get_u32, get_u64, Loader, Function};
+use crate::loader::{get_u32, get_u64, Function, Loader};
 use elf_64::elf_header::ElfHeader64;
 use elf_64::program_header::ProgramHeader64;
 use elf_64::section_header::SectionHeader64;
+use memmap::Mmap;
+use std::collections::HashMap;
 
 struct ElfIdentification {
     magic: [u8; 16],
@@ -74,30 +74,33 @@ impl ElfLoader {
         None
     }
 
-    fn create_func_table(mmap: &[u8], prog_headers: &Vec<ProgramHeader64>, sect_headers: &Vec<SectionHeader64>) -> Vec<Function> {
-        let symtab = sect_headers.iter()
-            .find_map(|s| {
-                if s.sh_name == ".symtab" {
-                    return Some(s);
-                }
-                None
-            });
-        let strtab = sect_headers.iter()
-            .find_map(|s| {
-                if s.sh_name == ".strtab" {
-                    return Some(s);
-                }
-                None
-            });
+    fn create_func_table(
+        mmap: &[u8],
+        prog_headers: &Vec<ProgramHeader64>,
+        sect_headers: &Vec<SectionHeader64>,
+    ) -> Vec<Function> {
+        let symtab = sect_headers.iter().find_map(|s| {
+            if s.sh_name == ".symtab" {
+                return Some(s);
+            }
+            None
+        });
+        let strtab = sect_headers.iter().find_map(|s| {
+            if s.sh_name == ".strtab" {
+                return Some(s);
+            }
+            None
+        });
 
         const ST_SIZE: usize = 24;
         let mut functions: Vec<Function> = Vec::new();
         if let (Some(symtab), Some(strtab)) = (symtab, strtab) {
-            for symtab_off in (symtab.sh_offset .. symtab.sh_offset + symtab.sh_size).step_by(ST_SIZE) {
+            for symtab_off in (symtab.sh_offset..symtab.sh_offset + symtab.sh_size).step_by(ST_SIZE)
+            {
                 let st_info = mmap[symtab_off as usize + 4];
                 if st_info & 0xf == 2 {
                     let st_name_off = get_u32(mmap, symtab_off as usize);
-                    let st_name = mmap[(strtab.sh_offset + st_name_off as u64) as usize ..]
+                    let st_name = mmap[(strtab.sh_offset + st_name_off as u64) as usize..]
                         .iter()
                         .take_while(|c| **c as char != '\0')
                         .map(|c| *c as char)
@@ -105,13 +108,11 @@ impl ElfLoader {
                     let st_addr = get_u64(mmap, (symtab_off + 8) as usize);
                     let st_size = get_u64(mmap, (symtab_off + 16) as usize);
 
-                    functions.push(
-                        Function {
-                            name: st_name,
-                            addr: Self::addr2offset(prog_headers, st_addr).unwrap(),
-                            size: st_size,
-                        }
-                    );
+                    functions.push(Function {
+                        name: st_name,
+                        addr: Self::addr2offset(prog_headers, st_addr).unwrap(),
+                        size: st_size,
+                    });
                 }
             }
         }
@@ -125,15 +126,13 @@ impl ElfLoader {
         let new_sect = SectionHeader64::new(&mapped_data, &new_elf);
         let new_func = Self::create_func_table(&mapped_data, &new_prog, &new_sect);
 
-        Box::new(
-            ElfLoader {
-                elf_header: new_elf,
-                prog_headers: new_prog,
-                sect_headers: new_sect,
-                functions: new_func,
-                mem_data: mapped_data,
-            }
-        )
+        Box::new(ElfLoader {
+            elf_header: new_elf,
+            prog_headers: new_prog,
+            sect_headers: new_sect,
+            functions: new_func,
+            mem_data: mapped_data,
+        })
     }
 }
 
@@ -205,29 +204,29 @@ impl Loader for ElfLoader {
             let call_addrs = func.inst_analysis(&mut inst_list, &self.mem_data);
 
             for (name, count) in inst_list.clone() {
-                *inst_list_overall.entry(name)
-                    .or_insert(0) += count;
+                *inst_list_overall.entry(name).or_insert(0) += count;
             }
 
-            let mut inst_list = inst_list
-                .iter()
-                .collect::<Vec<(&String, &i32)>>();
+            let mut inst_list = inst_list.iter().collect::<Vec<(&String, &i32)>>();
             inst_list.sort_by(|a, b| (-(a.1)).cmp(&(-(b.1))));
             for t in inst_list.iter() {
                 println!("{}: {}", t.0, t.1);
             }
 
-            if call_addrs.len() > 0 {
+            if !call_addrs.is_empty() {
                 print!("calling functions: ");
                 for call_addr in call_addrs {
-                    let call_func = self.functions.iter().find_map(|f| {
-                        if f.addr == call_addr {
-                            Some(f.name.clone())
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap_or(format!("{}", call_addr));
+                    let call_func = self
+                        .functions
+                        .iter()
+                        .find_map(|f| {
+                            if f.addr == call_addr {
+                                Some(f.name.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap_or(format!("{}", call_addr));
                     print!("func_{} ", call_func);
                 }
                 println!();
@@ -237,9 +236,7 @@ impl Loader for ElfLoader {
 
         println!("======================");
         let mut inst_count = 0;
-        let mut inst_list_overall = inst_list_overall
-            .iter()
-            .collect::<Vec<(&String, &i32)>>();
+        let mut inst_list_overall = inst_list_overall.iter().collect::<Vec<(&String, &i32)>>();
         inst_list_overall.sort_by(|a, b| (-(a.1)).cmp(&(-(b.1))));
         for t in inst_list_overall.iter() {
             inst_count += t.1;

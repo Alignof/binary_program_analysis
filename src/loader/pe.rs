@@ -2,12 +2,12 @@ mod msdos_header;
 mod nt_headers;
 mod section_header;
 
-use std::collections::HashMap;
+use crate::loader::{get_u32, get_u64, Function, Loader};
 use memmap::Mmap;
 use msdos_header::MsDosHeader;
 use nt_headers::NtHeader;
 use section_header::SectionHeader;
-use crate::loader::{get_u32, get_u64, Loader, Function};
+use std::collections::HashMap;
 
 pub struct PeLoader {
     pub msdos_header: MsDosHeader,
@@ -19,27 +19,28 @@ pub struct PeLoader {
 
 impl PeLoader {
     fn create_func_table(mmap: &[u8], sect_headers: &Vec<SectionHeader>) -> Vec<Function> {
-        let symtab = sect_headers.iter()
-            .find_map(|s| {
-                if s.name == ".symtab" {
-                    return Some(s);
-                }
-                None
-            });
-        let strtab = sect_headers.iter()
-            .find_map(|s| {
-                if s.name == ".strtab" {
-                    return Some(s);
-                }
-                None
-            });
+        let symtab = sect_headers.iter().find_map(|s| {
+            if s.name == ".symtab" {
+                return Some(s);
+            }
+            None
+        });
+        let strtab = sect_headers.iter().find_map(|s| {
+            if s.name == ".strtab" {
+                return Some(s);
+            }
+            None
+        });
 
         const ST_SIZE: usize = 32;
         let mut functions: Vec<Function> = Vec::new();
         if let (Some(symtab), Some(strtab)) = (symtab, strtab) {
-            for symtab_off in (symtab.pointer_to_raw_data .. symtab.pointer_to_raw_data + symtab.size_of_raw_data).step_by(ST_SIZE) {
+            for symtab_off in (symtab.pointer_to_raw_data
+                ..symtab.pointer_to_raw_data + symtab.size_of_raw_data)
+                .step_by(ST_SIZE)
+            {
                 let st_name_off = get_u32(mmap, symtab_off as usize);
-                let st_name = mmap[(strtab.pointer_to_raw_data + st_name_off) as usize ..]
+                let st_name = mmap[(strtab.pointer_to_raw_data + st_name_off) as usize..]
                     .iter()
                     .take_while(|c| **c as char != '\0')
                     .map(|c| *c as char)
@@ -47,13 +48,11 @@ impl PeLoader {
                 let st_addr = get_u64(mmap, (symtab_off + 16) as usize);
                 let st_size = get_u64(mmap, (symtab_off + 24) as usize);
 
-                functions.push(
-                    Function {
-                        name: st_name,
-                        addr: st_addr,
-                        size: st_size,
-                    }
-                );
+                functions.push(Function {
+                    name: st_name,
+                    addr: st_addr,
+                    size: st_size,
+                });
             }
         }
 
@@ -65,16 +64,14 @@ impl PeLoader {
         let new_nt = NtHeader::new(&mapped_data, new_msdos.nt_offset());
         let new_sect = SectionHeader::new(&mapped_data, new_nt.sect_num(), new_nt.sect_off());
         let new_func = Self::create_func_table(&mapped_data, &new_sect);
-        
-        Box::new(
-            PeLoader {
-                msdos_header: new_msdos,
-                nt_headers: new_nt,
-                sect_headers: new_sect,
-                functions: new_func,
-                mem_data: mapped_data,
-            }
-        )
+
+        Box::new(PeLoader {
+            msdos_header: new_msdos,
+            nt_headers: new_nt,
+            sect_headers: new_sect,
+            functions: new_func,
+            mem_data: mapped_data,
+        })
     }
 }
 
@@ -106,7 +103,6 @@ impl Loader for PeLoader {
         for sect in &self.sect_headers {
             sect.show();
         }
-
     }
 
     fn analysis(&self) {
@@ -117,4 +113,3 @@ impl Loader for PeLoader {
         }
     }
 }
-

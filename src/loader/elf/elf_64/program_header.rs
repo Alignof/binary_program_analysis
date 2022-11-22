@@ -1,6 +1,6 @@
-use crate::loader::{get_u32, get_u64};
 use super::ElfHeader64;
 use crate::loader::elf::ProgramHeader;
+use crate::loader::{get_u32, get_u64};
 
 fn get_segment_type_name(segment_type: u32) -> &'static str {
     match segment_type {
@@ -36,24 +36,20 @@ impl ProgramHeader64 {
             let segment_start: usize =
                 (elf_header.e_phoff + (elf_header.e_phentsize * segment_num) as u64) as usize;
 
-            new_prog.push(
-                    ProgramHeader64 {
-                        p_type: get_u32(mmap, segment_start),
-                        p_flags: get_u32(mmap, segment_start + 4),
-                        p_offset: get_u64(mmap, segment_start + 8),
-                        p_vaddr: get_u64(mmap, segment_start + 16),
-                        p_paddr: get_u64(mmap, segment_start + 24),
-                        p_filesz: get_u64(mmap, segment_start + 32),
-                        p_memsz: get_u64(mmap, segment_start + 48),
-                        p_align: get_u64(mmap, segment_start + 56),
-                    }
-            );
+            new_prog.push(ProgramHeader64 {
+                p_type: get_u32(mmap, segment_start),
+                p_flags: get_u32(mmap, segment_start + 4),
+                p_offset: get_u64(mmap, segment_start + 8),
+                p_vaddr: get_u64(mmap, segment_start + 16),
+                p_paddr: get_u64(mmap, segment_start + 24),
+                p_filesz: get_u64(mmap, segment_start + 32),
+                p_memsz: get_u64(mmap, segment_start + 48),
+                p_align: get_u64(mmap, segment_start + 56),
+            });
         }
 
         new_prog
     }
-
-
 }
 
 impl ProgramHeader for ProgramHeader64 {

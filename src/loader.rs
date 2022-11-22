@@ -1,8 +1,8 @@
 pub mod elf;
 pub mod pe;
 
-use std::collections::HashMap;
 use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
+use std::collections::HashMap;
 
 #[allow(clippy::identity_op)]
 pub fn get_u16(mmap: &[u8], index: usize) -> u16 {
@@ -42,12 +42,12 @@ impl Function {
         const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
         const EXAMPLE_CODE_BITNESS: u32 = 64;
         let start_addr: u64 = self.addr as u64;
-        let bytes = &mmap[self.addr as usize .. (self.addr + self.size) as usize];
+        let bytes = &mmap[self.addr as usize..(self.addr + self.size) as usize];
         let mut decoder = Decoder::with_ip(
             EXAMPLE_CODE_BITNESS,
             bytes,
             start_addr,
-            DecoderOptions::NONE
+            DecoderOptions::NONE,
         );
         let mut formatter = NasmFormatter::new();
 
@@ -75,11 +75,15 @@ impl Function {
             }
             println!(" {}", output);
 
-            *inst_list.entry(format!("{:?}", instruction.mnemonic()))
+            *inst_list
+                .entry(format!("{:?}", instruction.mnemonic()))
                 .or_insert(0) += 1;
 
-            if instruction.is_call_near() || instruction.is_call_far() ||
-               instruction.is_call_near_indirect () || instruction.is_call_far_indirect() {
+            if instruction.is_call_near()
+                || instruction.is_call_far()
+                || instruction.is_call_near_indirect()
+                || instruction.is_call_far_indirect()
+            {
                 call_addrs.push(instruction.memory_displacement64());
             }
         }

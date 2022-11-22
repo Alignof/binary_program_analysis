@@ -1,5 +1,5 @@
-use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
 use crate::loader::{get_u16, get_u32, get_u64};
+use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
 
 pub struct SectionHeader {
     pub name: String,
@@ -14,30 +14,27 @@ pub struct SectionHeader {
     characteristics: u32,
 }
 
-
 impl SectionHeader {
     pub fn new(mmap: &[u8], sect_num: usize, header_start: usize) -> Vec<SectionHeader> {
         const SECT_SIZE: usize = 40;
         let mut section_headers = Vec::new();
-        for offset in (header_start .. sect_num * SECT_SIZE).step_by(SECT_SIZE) {
-            section_headers.push(
-                SectionHeader {
-                    name: get_u64(mmap, offset)
-                        .to_le_bytes()
-                        .iter()
-                        .map(|b| *b as char)
-                        .collect::<String>(),
-                    virtual_size: get_u32(mmap, offset + 8),
-                    virtual_address: get_u32(mmap, offset + 12),
-                    size_of_raw_data: get_u32(mmap, offset + 16),
-                    pointer_to_raw_data: get_u32(mmap, offset + 20),
-                    pointer_to_relocations: get_u32(mmap, offset + 24),
-                    pointer_to_linenumbers: get_u32(mmap, offset + 28),
-                    number_of_relocations: get_u16(mmap, offset + 32),
-                    number_of_linenumbers: get_u16(mmap, offset + 34),
-                    characteristics: get_u32(mmap, offset + 36),
-                }
-            )
+        for offset in (header_start..sect_num * SECT_SIZE).step_by(SECT_SIZE) {
+            section_headers.push(SectionHeader {
+                name: get_u64(mmap, offset)
+                    .to_le_bytes()
+                    .iter()
+                    .map(|b| *b as char)
+                    .collect::<String>(),
+                virtual_size: get_u32(mmap, offset + 8),
+                virtual_address: get_u32(mmap, offset + 12),
+                size_of_raw_data: get_u32(mmap, offset + 16),
+                pointer_to_raw_data: get_u32(mmap, offset + 20),
+                pointer_to_relocations: get_u32(mmap, offset + 24),
+                pointer_to_linenumbers: get_u32(mmap, offset + 28),
+                number_of_relocations: get_u16(mmap, offset + 32),
+                number_of_linenumbers: get_u16(mmap, offset + 34),
+                characteristics: get_u32(mmap, offset + 36),
+            })
         }
 
         section_headers
@@ -49,8 +46,14 @@ impl SectionHeader {
         println!("virtual_address:\t{:#x}", self.virtual_address);
         println!("size_of_raw_data:\t{:#x}", self.size_of_raw_data);
         println!("pointer_to_raw_data:\t{:#x}", self.pointer_to_raw_data);
-        println!("pointer_to_relocations:\t{:#x}", self.pointer_to_relocations);
-        println!("pointer_to_linenumbers:\t{:#x}", self.pointer_to_linenumbers);
+        println!(
+            "pointer_to_relocations:\t{:#x}",
+            self.pointer_to_relocations
+        );
+        println!(
+            "pointer_to_linenumbers:\t{:#x}",
+            self.pointer_to_linenumbers
+        );
         println!("number_of_relocations:\t{:#x}", self.number_of_relocations);
         println!("number_of_linenumbers:\t{:#x}", self.number_of_linenumbers);
         println!("characteristics:\t{:#x}", self.characteristics);
@@ -62,12 +65,13 @@ impl SectionHeader {
         #[allow(non_snake_case)]
         let EXAMPLE_CODE_RIP: u64 = self.virtual_address as u64;
         if self.characteristics & 0x00000020 != 0x0 {
-            let bytes = &mmap[self.pointer_to_raw_data as usize .. (self.pointer_to_raw_data + self.size_of_raw_data) as usize];
+            let bytes = &mmap[self.pointer_to_raw_data as usize
+                ..(self.pointer_to_raw_data + self.size_of_raw_data) as usize];
             let mut decoder = Decoder::with_ip(
                 EXAMPLE_CODE_BITNESS,
                 bytes,
                 EXAMPLE_CODE_RIP,
-                DecoderOptions::NONE
+                DecoderOptions::NONE,
             );
             let mut formatter = NasmFormatter::new();
 

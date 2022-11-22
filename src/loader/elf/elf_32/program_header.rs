@@ -1,5 +1,5 @@
-use crate::loader::get_u32;
 use super::ElfHeader;
+use crate::loader::get_u32;
 
 fn get_segment_type_name(segment_type: u32) -> &'static str {
     match segment_type {
