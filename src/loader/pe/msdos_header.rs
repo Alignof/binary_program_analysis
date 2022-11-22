@@ -27,7 +27,7 @@ impl MsDosHeader {
     pub fn new(mmap: &[u8]) -> MsDosHeader {
         const HEADER_START: usize = 0;
         MsDosHeader {
-            e_magic: get_u16(mmap, HEADER_START + 0),
+            e_magic: get_u16(mmap, HEADER_START),
             e_cblp: get_u16(mmap, HEADER_START + 2),
             e_cp: get_u16(mmap, HEADER_START + 4),
             e_crlc: get_u16(mmap, HEADER_START + 6),

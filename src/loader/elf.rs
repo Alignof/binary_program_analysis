@@ -213,7 +213,7 @@ impl Loader for ElfLoader {
                 println!("{}: {}", t.0, t.1);
             }
 
-            if call_addrs.len() > 0 {
+            if !call_addrs.is_empty() {
                 print!("calling functions: ");
                 for call_addr in call_addrs {
                     let call_func = self
