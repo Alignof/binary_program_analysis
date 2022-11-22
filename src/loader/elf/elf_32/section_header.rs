@@ -1,6 +1,6 @@
-use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
 use super::ElfHeader;
 use crate::loader::get_u32;
+use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
 
 pub struct SectionHeader32 {
     pub sh_name: String,
@@ -98,12 +98,12 @@ impl SectionHeader32 {
         const EXAMPLE_CODE_BITNESS: u32 = 64;
         const EXAMPLE_CODE_RIP: u64 = 0x0000_0000_8000_0000;
         if self.sh_flags >> 2 & 1 == 1 {
-            let bytes = &mmap[self.sh_offset as usize .. (self.sh_offset + self.sh_size) as usize];
+            let bytes = &mmap[self.sh_offset as usize..(self.sh_offset + self.sh_size) as usize];
             let mut decoder = Decoder::with_ip(
                 EXAMPLE_CODE_BITNESS,
                 bytes,
                 EXAMPLE_CODE_RIP,
-                DecoderOptions::NONE
+                DecoderOptions::NONE,
             );
             let mut formatter = NasmFormatter::new();
 
