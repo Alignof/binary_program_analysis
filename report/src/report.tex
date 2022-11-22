@@ -3,245 +3,457 @@
 \input{include/package.tex}
 \input{include/myminted.tex}
 
-\title{\LaTeX のtemplate}
-\author{高名 典雅}
-\date{\today}
 
 \begin{document}
 \newcounter{listings}
 
 \include{titlepage}
 
-\section{実装内容と使い方}
-今回は，PEとELFの両方に対応したバイナリ解析ツールを開発した．
-作成したプログラムはRust製で以下の機能を持っている．
+\section{関数名と命令の解析}
+前回提出したプログラムに機能を追加する形で実装した．
+\footnote{objdumpと適当なスクリプトで簡単にできてしまいそうだが，最終課題に向けてRustで単一のツールとして実装した．}
+前回の時点でELFファイルとPEファイルを解析してsection（やELFではsegment）のヘッダと
+対応する領域のダンプができていたので，今回は関数名を取得する処理から始めた．
+ELFの場合，関数名はシンボルテーブルから取得することができる．
+シンボルテーブルの場所はセクションヘッダから取得できるので，".symtab"という名前の
+セクションヘッダを探してそのアドレス（オフセット）を取得すれば良い．
+
+実際の処理をリスト\ref{lst:get_func}に示す．
+\begin{longlisting}
+\begin{myminted}{rust}{src/loader/elf.rs}
+impl ElfLoader {
+    fn create_func_table(mmap: &[u8], sect_headers: &Vec<SectionHeader64>) -> Vec<Function> {
+        let symtab = sect_headers.iter()
+            .find_map(|s| {
+                if s.sh_name == ".symtab" {
+                    return Some(s);
+                }
+                None
+            });
+        let strtab = sect_headers.iter()
+            .find_map(|s| {
+                if s.sh_name == ".strtab" {
+                    return Some(s);
+                }
+                None
+            });
+
+        const ST_SIZE: usize = 24;
+        let mut functions: Vec<Function> = Vec::new();
+        if let (Some(symtab), Some(strtab)) = (symtab, strtab) {
+            for symtab_off in (symtab.sh_offset .. symtab.sh_offset + symtab.sh_size).step_by(ST_SIZE) {
+                let st_info = mmap[symtab_off as usize + 4];
+                if st_info & 0xf == 2 {
+                    let st_name_off = get_u32(mmap, symtab_off as usize);
+                    let st_name = mmap[(strtab.sh_offset + st_name_off as u64) as usize ..]
+                        .iter()
+                        .take_while(|c| **c as char != '\0')
+                        .map(|c| *c as char)
+                        .collect::<String>();
+                    let st_addr = get_u64(mmap, (symtab_off + 8) as usize);
+                    let st_size = get_u64(mmap, (symtab_off + 16) as usize);
+
+                    functions.push(
+                        Function {
+                            name: st_name,
+                            addr: st_addr,
+                            size: st_size,
+                        }
+                    );
+                }
+            }
+        }
+
+        functions
+    }
+}
+\end{myminted}
+\caption{関数名を取得する処理}
+\label{lst:get_func}
+\end{longlisting}
+
+示した処理では".symtab"というセクションの他に".strtab"というセクションも探す．
+これはシンボルテーブルで参照するシンボルの名前が0終端で並んだテーブルである．
+シンボルテーブルのst\_nameには名前そのものではなく".strtab"へのオフセットが入っている．
+
+名前の他に関数のELFの内のオフセットと関数の範囲を示すサイズを取得する．
+64bitのELFの場合はst\_addrのオフセットは8バイト，st\_sizeのオフセットは16バイト
+\footnote{$4+1+1=6$で8のalignなので8バイトになる．}
+なのでそこにアクセスする\cite{sym}．
+
+関数名と関数の範囲が分かったので，その部分に含まれる命令を解析する．
+命令の解析はデコーダを自分で書いても良かったが，x86\_64のデコードは複雑なので
+今回は外部のライブラリであるiced\_x86\cite{iced}というクレートを用いて解析した．
+
+命令を解析する部分をリスト\ref{lst:inst}に示す．
+\begin{longlisting}
+\begin{myminted}{rust}{src/loader.rs}
+impl Function {
+    pub fn inst_analysis(&self, inst_list: &mut HashMap<String, i32>, mmap: &[u8]) -> Vec<u64> {
+        println!("<function: {}>", self.name);
+        const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
+        const EXAMPLE_CODE_BITNESS: u32 = 64;
+        let start_addr: u64 = self.addr as u64;
+        let bytes = &mmap[self.addr as usize .. (self.addr + self.size) as usize];
+        let mut decoder = Decoder::with_ip(
+            EXAMPLE_CODE_BITNESS,
+            bytes,
+            start_addr,
+            DecoderOptions::NONE
+        );
+        let mut formatter = NasmFormatter::new();
+
+        formatter.options_mut().set_digit_separator("_");
+        formatter.options_mut().set_first_operand_char_index(10);
+
+        let mut output = String::new();
+        let mut instruction = Instruction::default();
+        let mut call_addrs = Vec::new();
+        while decoder.can_decode() {
+            decoder.decode_out(&mut instruction);
+            output.clear();
+            formatter.format(&instruction, &mut output);
+
+            print!("{:016X} ", instruction.ip());
+            let start_index = (instruction.ip() - start_addr) as usize;
+            let instr_bytes = &bytes[start_index..start_index + instruction.len()];
+            for b in instr_bytes.iter() {
+                print!("{:02X}", b);
+            }
+            if instr_bytes.len() < HEXBYTES_COLUMN_BYTE_LENGTH {
+                for _ in 0..HEXBYTES_COLUMN_BYTE_LENGTH - instr_bytes.len() {
+                    print!("  ");
+                }
+            }
+            println!(" {}", output);
+
+            *inst_list.entry(format!("{:?}", instruction.mnemonic()))
+                .or_insert(0) += 1;
+
+            if instruction.is_call_near() || instruction.is_call_far() ||
+               instruction.is_call_near_indirect () || instruction.is_call_far_indirect() {
+                call_addrs.push(instruction.memory_displacement64());
+            }
+        }
+
+        call_addrs
+    }
+}
+\end{myminted}
+\caption{命令を解析する処理}
+\label{lst:inst}
+\end{longlisting}
+
+デコードした命令をEnumからStringに変換してHashMapに格納しながら出現回数を数えている．
+同時にデコードした命令を一覧で表示している．
+表示時にはvalueで降順にソートすれば出現頻度順に命令をまとめて表示できる．
+
+実行例は最後にまとめて示す．
+
+\section{関数呼び出しの解析}
+前節の処理に加える形で実装を行った．
+関数名とファイル内オフセットとサイズ，そしてその関数に含まれる命令を取得できた
+ので命令から関数の呼び出しが分かる．
+また，関数のアドレスと名前の対応を既に持っているので関数呼び出しをする命令の
+オペランドからアドレスを取得して既に持っている関数のテーブルと称号すれば良い．
+
+関数呼び出しの検知と呼び出し先のアドレスの取得はリスト\ref{lst:inst}の43行目で
+行っている．
+x86\_64では原則，関数呼び出しはcall命令で行うので命令の名前がcallであれば
+関数呼び出しとしても良いが，今回は使用している外部ライブラリにcall命令を
+判定するメソッドがあったのでそれを利用した．
+
+表示する処理をリスト\ref{lst:show}に示す．
+\begin{longlisting}
+\begin{myminted}{rust}{src/loader/elf.rs}
+fn analysis(&self) {
+    let mut inst_list_overall = HashMap::new();
+    for func in self.functions.iter() {
+        let mut inst_list = HashMap::new();
+        let call_addrs = func.inst_analysis(&mut inst_list, &self.mem_data);
+
+        for (name, count) in inst_list.clone() {
+            *inst_list_overall.entry(name)
+                .or_insert(0) += count;
+        }
+
+        let mut inst_list = inst_list
+            .iter()
+            .collect::<Vec<(&String, &i32)>>();
+        inst_list.sort_by(|a, b| (-(a.1)).cmp(&(-(b.1))));
+        for t in inst_list.iter() {
+            println!("{}: {}", t.0, t.1);
+        }
+
+        if call_addrs.len() > 0 {
+            print!("calling functions: ");
+            for call_addr in call_addrs {
+                let call_func = self.functions.iter().find_map(|f| {
+                    if f.addr == call_addr {
+                        Some(f.name.clone())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(format!("{}", call_addr));
+                print!("func_{} ", call_func);
+            }
+            println!();
+        }
+        println!();
+    }
+
+    println!("======================");
+    let mut inst_count = 0;
+    let mut inst_list_overall = inst_list_overall
+        .iter()
+        .collect::<Vec<(&String, &i32)>>();
+    inst_list_overall.sort_by(|a, b| (-(a.1)).cmp(&(-(b.1))));
+    for t in inst_list_overall.iter() {
+        inst_count += t.1;
+        println!("{}: {}", t.0, t.1);
+    }
+    println!("-----");
+    println!("instructions: {}", inst_count);
+    println!("======================");
+}
+\end{myminted}
+\caption{解析結果を表示する処理}
+\label{lst:show}
+\end{longlisting}
+
+14行目からの処理で関数呼び出し先のアドレスを可能であれば関数のリストから
+逆引きし，見つからなければ"func\_{addr}"の形式で関数名を取得する．
+
+\section{実行例}
+実行例を示す．
+まず，入力例として以下のようなファイルを用意する．
+\begin{longlisting}
+\begin{myminted}{c}{test.c}
+int num_1(void) {
+    return 1;
+}
+
+int num_2(void) {
+    return 1;
+}
+
+int add() {
+    return num_1() + num_2();
+}
+
+int main(void) {
+    int x = add();
+    printf("%d\n", x);
+    return 0;
+}
+\end{myminted}
+\caption{入力例}
+\label{lst:input}
+\end{longlisting}
+
+そして以下のコマンドでELFファイルを生成する．
+\begin{quote}
+\$ gcc test.c -o x86\_elf64\_test \\
+\$ file x86\_elf64\_test \\
+x86\_elf64\_test: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=64f7f24b54d55c831c04fd06dc71d73ca6b19967, for GNU/Linux 4.4.0, with debug\_info, not stripped
+\end{quote}
+
+プログラムを実行して解析する．解析を行うにはaオプションを使用する．
+\begin{quote}
+\$ cargo r -- -a ~/tmp/x86\_elf64\_test \\
+$<$function: deregister\_tm\_clones$>$ \\
+ \\
+$<$function: register\_tm\_clones$>$ \\
+ \\
+$<$function: \_\_do\_global\_dtors\_aux$>$ \\
+ \\
+$<$function: frame\_dummy$>$ \\
+ \\
+$<$function: \_\_libc\_start\_main@GLIBC\_2.34$>$ \\
+ \\
+$<$function: add$>$ \\
+000000000000114F 55                   push      rbp \\
+0000000000001150 4889E5               mov       rbp,rsp \\
+0000000000001153 53                   push      rbx \\
+0000000000001154 E8E0FFFFFF           call      0000\_0000\_0000\_1139h \\
+0000000000001159 89C3                 mov       ebx,eax \\
+000000000000115B E8E4FFFFFF           call      0000\_0000\_0000\_1144h \\
+0000000000001160 01D8                 add       eax,ebx \\
+0000000000001162 488B5DF8             mov       rbx,[rbp-8] \\
+0000000000001166 C9                   leave \\
+0000000000001167 C3                   ret \\
+Mov: 3 \\
+Push: 2 \\
+Call: 2 \\
+Leave: 1 \\
+Add: 1 \\
+Ret: 1 \\
+calling functions: func\_num\_1 func\_num\_2 \\
+ \\
+$<$function: num\_1$>$ \\
+0000000000001139 55                   push      rbp \\
+000000000000113A 4889E5               mov       rbp,rsp \\
+000000000000113D B801000000           mov       eax,1 \\
+0000000000001142 5D                   pop       rbp \\
+0000000000001143 C3                   ret \\
+Mov: 2 \\
+Push: 1 \\
+Pop: 1 \\
+Ret: 1 \\
+ \\
+$<$function: \_fini$>$ \\
+ \\
+$<$function: printf@GLIBC\_2.2.5$>$ \\
+ \\
+$<$function: \_start$>$ \\
+0000000000001040 F30F1EFA             endbr64 \\
+0000000000001044 31ED                 xor       ebp,ebp \\
+0000000000001046 4989D1               mov       r9,rdx \\
+0000000000001049 5E                   pop       rsi \\
+000000000000104A 4889E2               mov       rdx,rsp \\
+000000000000104D 4883E4F0             and       rsp,0\_FFFF\_FFFF\_FFFF\_FFF0h \\
+0000000000001051 50                   push      rax \\
+0000000000001052 54                   push      rsp \\
+0000000000001053 4531C0               xor       r8d,r8d \\
+0000000000001056 31C9                 xor       ecx,ecx \\
+0000000000001058 488D3D09010000       lea       rdi,[rel 1168h] \\
+000000000000105F FF15732F0000         call      qword [rel 3FD8h] \\
+0000000000001065 F4                   hlt \\
+Xor: 3 \\
+Mov: 2 \\
+Push: 2 \\
+Endbr64: 1 \\
+Lea: 1 \\
+Pop: 1 \\
+And: 1 \\
+Call: 1 \\
+Hlt: 1 \\
+calling functions: func\_16344 \\
+ \\
+$<$function: main$>$ \\
+0000000000001168 55                   push      rbp \\
+0000000000001169 4889E5               mov       rbp,rsp \\
+000000000000116C 4883EC10             sub       rsp,10h \\
+0000000000001170 B800000000           mov       eax,0 \\
+0000000000001175 E8D5FFFFFF           call      0000\_0000\_0000\_114Fh \\
+000000000000117A 8945FC               mov       [rbp-4],eax \\
+000000000000117D 8B45FC               mov       eax,[rbp-4] \\
+0000000000001180 89C6                 mov       esi,eax \\
+0000000000001182 488D057B0E0000       lea       rax,[rel 2004h] \\
+0000000000001189 4889C7               mov       rdi,rax \\
+000000000000118C B800000000           mov       eax,0 \\
+0000000000001191 E89AFEFFFF           call      0000\_0000\_0000\_1030h \\
+0000000000001196 B800000000           mov       eax,0 \\
+000000000000119B C9                   leave \\
+000000000000119C C3                   ret \\
+Mov: 8 \\
+Call: 2 \\
+Lea: 1 \\
+Ret: 1 \\
+Push: 1 \\
+Leave: 1 \\
+Sub: 1 \\
+calling functions: func\_add func\_4144 \\
+ \\
+$<$function: num\_2$>$ \\
+0000000000001144 55                   push      rbp \\
+0000000000001145 4889E5               mov       rbp,rsp \\
+0000000000001148 B801000000           mov       eax,1 \\
+000000000000114D 5D                   pop       rbp \\
+000000000000114E C3                   ret \\
+Mov: 2 \\
+Ret: 1 \\
+Push: 1 \\
+Pop: 1 \\
+ \\
+$<$function: \_\_cxa\_finalize@GLIBC\_2.2.5$>$ \\
+ \\
+$<$function: \_init$>$ \\
+ \\
+====================== \\
+Mov: 17 \\
+Push: 7 \\
+Call: 5 \\
+Ret: 4 \\
+Xor: 3 \\
+Pop: 3 \\
+Lea: 2 \\
+Leave: 2 \\
+Sub: 1 \\
+Endbr64: 1 \\
+And: 1 \\
+Add: 1 \\
+Hlt: 1 \\
+----- \\
+instructions: 48 \\
+======================
+\end{quote}
+
+各関数ごとにデコード結果と命令の出現回数，呼び出している関数を列挙している．
+最後に全体の命令数と命令の分布を表示している．
+コード全体のCPU命令数は各関数の持つ命令数で算出した．
+セクション全体でも試したが，PE形式では何も書かれていない領域(0x0000)も
+セクションに含まれてしまう上，0x0000はadd命令に変換されてしまうので正確な命令数が
+分からず断念した．
+
+今回，関数名の逆引きにシンボルテーブルを用いているが，
+printfなどのライブラリ関数はシンボルテーブルではなく
+リロケーションテーブル(.rela.plt)に置かれていたため表示できなかった．
+形式が違うため別途解析が必要なため最終発表までの課題とする．
+
+また，今回\_initなどの関数はダイナミックリンクなので表示できなかった．
+スタティックリンクにすれば動くだろうが，その場合はシンボルテーブルの値に
+仮想アドレスが置かれるのでプログラムヘッダを見てアドレスをオフセットに変換する
+処理が必要になる．
+これもまだ未実装なので実装して対応したい．
+
+11/9追記．スタティックリンクでもプログラムヘッダを使ってアドレスをオフセットに
+直して実行することができた．
+また，ライブラリ関数もきちんと表示できた．
+
+\section{前回からの変更点}
+本実験を行う上で，最終課題に向けて各課題に対応する機能を1つの実行プログラムに
+実装している．
+課題と直接は関係がないが，実装の上で追加した機能を紹介する．
 \begin{itemize}
-    \item[-h] ヘルプの表示
-    \item[-e] ヘッダ情報の表示
-    \item[-s] セクションヘッダの表示
-    \item[-d] セクションのダンプ
-    \item[-p] セグメントヘッダの表示（ELFのみ）
-    \item[-a] ヘッダ情報とセクションヘッダの（とセグメントヘッダの）表示
+    \item ELFモジュールを分割しELF32とELF64の両方に対応．
+    \item ELF32とELF64をtraitで抽象化．
+    \item ELFとPEの双方でセクションヘッダの表示時に命令をデコードして表示．
+    \item --analyzeフラグを追加．
+    \item 前回提出したコードにあったPEのセクションの不具合を修正．
 \end{itemize}
 
-これらは対象となるバイナリファイルのマジックを読むことで自動的にファイルを判別している．
-そのためファイルの仕様を指定するオプションは存在しない．
-項目の最初に示したのがオプションで，例えばヘッダ情報を確認したければ-eオプションを渡して実行する．
+今回，PE形式でのシンボルテーブルの取得に時間がかかりそうだったので実装を避けたが，
+最終課題までには対応しておきたい．
+
+実装量をtokeiコマンド\cite{tokei}で測ると，
 \begin{quote}
-\$ target/debug/readbin \\
-error: The following required arguments were not provided: \\
-    $<$filename$>$ \\
- \\
-USAGE: \\
-    readbin [OPTIONS] $<$filename$>$ \\
- \\
-For more information try --help \\
- \\
-\$ target/debug/readbin -e ./target\_bin \\
-================ elf header ================ \\
-magic:	7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00 \\
-class:		1 \\
-endian:		1 \\
-version:	1 \\
-os\_abi:		0 \\
-os\_abi\_ver:	0 \\
-e\_type:		ET\_EXEC \\
-e\_machine:	243 \\
-e\_version:	0x1 \\
-e\_entry:	0x10086 \\
-e\_phoff:	52 (bytes into file) \\
-e\_shoff:	15928 (bytes into file) \\
-e\_flags:	0x1 \\
-e\_ehsize:	52 (bytes) \\
-e\_phentsize:	32 (bytes) \\
-e\_phnum:	2 \\
-e\_shentsize:	40 (bytes) \\
-e\_shnum:	15 \\
-e\_shstrndx:	14 \\
- \\
- \\
-\$ target/debug/readbin -e ./target\_pe.exe \\
-================ msdos header ================ \\
-e\_magic:	0x5a4d \\
-e\_cblp:		0x90 \\
-e\_cp:		0x3 \\
-e\_crlc:		0x0 \\
-e\_cparhdr:	4 \\
-e\_minalloc:	0x0 \\
-e\_maxalloc:	0xffff \\
-e\_ss:		0 \\
-e\_sp:		184 \\
-e\_csum:		0 \\
-e\_ip:		0 \\
-e\_cs:		0 \\
-e\_lfarlc:	64 \\
-e\_ovno:		0 \\
-e\_res:		[0, 0, 0, 0] \\
-e\_oemid:	0 \\
-e\_oeminfo:	0 \\
-e\_res2:		[0, 0, 0, 0, 0, 0, 0, 0, 0, 0] \\
-e\_lfanew:	0x80 \\
+\begin{verbatim}
+\$ tokei src
+===============================================================================
+ Language            Files        Lines         Code     Comments       Blanks 
+===============================================================================
+ Rust                   15         1514         1356            0          158 
+===============================================================================
+ Total                  15         1514         1356            0          158 
+===============================================================================
+\end{verbatim}
 \end{quote}
 
-全てのヘッダ情報が見たい場合は-aオプションを渡す．
-\begin{quote}
-\$ target/debug/readbin -a ./target\_elf \\
-================ elf header ================ \\
-magic:	7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00 \\
-class:		1 \\
-endian:		1 \\
-version:	1 \\
-os\_abi:		0 \\
-os\_abi\_ver:	0 \\
-e\_type:		ET\_EXEC \\
-e\_machine:	243 \\
-e\_version:	0x1 \\
-e\_entry:	0x10086 \\
-e\_phoff:	52 (bytes into file) \\
-e\_shoff:	15928 (bytes into file) \\
-e\_flags:	0x1 \\
-e\_ehsize:	52 (bytes) \\
-e\_phentsize:	32 (bytes) \\
-e\_phnum:	2 \\
-e\_shentsize:	40 (bytes) \\
-e\_shnum:	15 \\
-e\_shstrndx:	14 \\
- \\
- \\
- \\
-============== program header 1============== \\
-p\_type:		PT\_LOAD \\
-p\_offset:	0x0 \\
-p\_vaddr:	0x10000 \\
-p\_paddr:	0x10000 \\
-p\_filesz:	0x246e \\
-p\_memsz:	0x246e \\
-p\_flags:	5 \\
-p\_align:	0x1000 \\
-============== program header 2============== \\
-p\_type:		PT\_LOAD \\
-p\_offset:	0x2470 \\
-p\_vaddr:	0x13470 \\
-p\_paddr:	0x13470 \\
-p\_filesz:	0x854 \\
-p\_memsz:	0x8ac \\
-p\_flags:	6 \\
-p\_align:	0x1000 \\
- \\
- \\
- \\
-============== section header 1============== \\
-sh\_name:	 \\
-sh\_type:	SHT\_NULL \\
-sh\_flags:	0 \\
-sh\_addr:	0x0 \\
-sh\_offset:	0x0 \\
-sh\_size:	0 \\
-sh\_link:	0 \\
-sh\_info:	0 \\
-sh\_addralign:	0 \\
-sh\_entsize:	0 \\
- \\
-/* 中略 */ \\
- \\
-============== section header 15============== \\
-sh\_name:	.shstrtab \\
-sh\_type:	SHT\_STRTAB \\
-sh\_flags:	0 \\
-sh\_addr:	0x0 \\
-sh\_offset:	0x3dba \\
-sh\_size:	126 \\
-sh\_link:	0 \\
-sh\_info:	0 \\
-sh\_addralign:	1 \\
-sh\_entsize:	0 \\
-\$ target/debug/readbin -a ./target\_pe.exe \\
-================ msdos header ================ \\
-e\_magic:	0x5a4d \\
-e\_cblp:		0x90 \\
-e\_cp:		0x3 \\
-e\_crlc:		0x0 \\
-e\_cparhdr:	4 \\
-e\_minalloc:	0x0 \\
-e\_maxalloc:	0xffff \\
-e\_ss:		0 \\
-e\_sp:		184 \\
-e\_csum:		0 \\
-e\_ip:		0 \\
-e\_cs:		0 \\
-e\_lfarlc:	64 \\
-e\_ovno:		0 \\
-e\_res:		[0, 0, 0, 0] \\
-e\_oemid:	0 \\
-e\_oeminfo:	0 \\
-e\_res2:		[0, 0, 0, 0, 0, 0, 0, 0, 0, 0] \\
-e\_lfanew:	0x80 \\
- \\
-=== NtHeader === \\
-signature: 0x4550 \\
---- FileHeader --- \\
-machine:	0x8664 \\
-number\_of\_sections:	0x14 \\
-time\_date\_stamp:	0x63525048 \\
-pointer\_to\_symtab:	0x3fc00 \\
-number\_of\_symbols:	0x793 \\
-size\_of\_optional\_header:	0xf0 \\
-characteristics:	0x26 \\
---- OptionalHeader --- \\
-magic:	0x20b \\
-major\_linker\_version:	0x2 \\
-minor\_linker\_version:	0x26 \\
-size\_of\_code:	0x6e00 \\
-size\_of\_initialized\_data:	0x9c00 \\
-size\_of\_uninitialized\_data:	0xc00 \\
-address\_of\_entry\_point:	0x14d0 \\
-base\_of\_code:	0x1000 \\
-base\_of\_data:	0x40000000 \\
-image\_base:	0x1 \\
-section\_alignment:	0x1000 \\
-file\_alignment:	0x200 \\
-major\_operating\_system\_version:	0x4 \\
-minor\_operating\_system\_version:	0x0 \\
-major\_image\_version:	0x0 \\
-minor\_image\_version:	0x0 \\
-major\_subsystem\_version:	0x5 \\
-minor\_subsystem\_version:	0x2 \\
-win32\_version\_value:	0x0 \\
-size\_of\_image:	0x4e000 \\
-size\_of\_headers:	0x600 \\
-check\_sum:	0x4f778 \\
-subsystem:	0x3 \\
-dll\_characteristics:	0x160 \\
-size\_of\_stack\_reserve:	0x200000 \\
-size\_of\_stack\_commit:	0x1000 \\
-size\_of\_heap\_reserve:	0x100000 \\
-size\_of\_heap\_commit:	0x1000 \\
-loader\_flags:	0x0 \\
-number\_of\_rva\_and\_sizes:	0x10 \\
-\_data\_directory:	0x0 \\
---- section --- \\
-name:	.text \\
-virtual\_address:	0x6da80000 \\
-size\_of\_raw\_data:	0x6e000000 \\
-pointer\_to\_raw\_data:	0x0 \\
-pointer\_to\_relocations:	0x0 \\
-pointer\_to\_linenumbers:	0x642e6000 \\
-number\_of\_relocations:	0x0 \\
-number\_of\_linenumbers:	0x0 \\
-characteristics:	0x2000000 \\
- \\
-/* 中略 */ \\
- \\
---- section --- \\
-name:	 .reloc \\
-virtual\_address:	0x840000 \\
-size\_of\_raw\_data:	0x2000001 \\
-pointer\_to\_raw\_data:	0x0 \\
-pointer\_to\_relocations:	0x0 \\
-pointer\_to\_linenumbers:	0x312f4200 \\
-number\_of\_relocations:	0x0 \\
-number\_of\_linenumbers:	0x0 \\
-characteristics:	0x800000 \\
-\end{quote}
+1500行程度だった．
+まだELF32とELF64まわりで抽象化が不十分なところがあるので可読性のためにも
+もう少し抑えたい．
 
+\begin{thebibliography}{9}
+    \bibitem{sym}
+        シンボルテーブルセクション, 2022年11月8日閲覧,
+        \url{http://www.latex-cmd.com/struct/thebibliography.html}
+    \bibitem{iced}
+        iced\_x86 - Rust, 2022年11月8日閲覧,
+        \url{https://docs.rs/iced-x86/latest/iced_x86/}
+    \bibitem{tokei}
+        XAMPPRocky/tokei: Count your code, quickly., 2022年11月9日閲覧,
+        \url{https://github.com/XAMPPRocky/tokei}
+\end{thebibliography}
 \end{document}

@@ -1,6 +1,10 @@
 \definecolor{bg}{HTML}{333333}
 \definecolor{line}{HTML}{000000}
 
+\renewcommand{\theFancyVerbLine}{\bfseries
+    \textcolor[rgb]{0.0,0.0,0.0}{\scriptsize
+        \oldstylenums{\arabic{FancyVerbLine}}}}
+
 \newenvironment{longlisting}{\captionsetup{type=listing}}{}
 \renewcommand\listtablename{表}
 \renewcommand\listingscaption{リスト}
@@ -10,30 +14,27 @@
     autogobble,
 }
 
-\newtcblisting[]{myminted}[3][]{%
+\newtcblisting{myminted}[3][]{%
     theorem={Listing}{listings}{#3}{},
-    fonttitle=\scriptsize\bfseries,
-    listing engine=minted,
-    minted style=monokai,
-    minted language=#2,
-    colback=bg,
-    minted options={%
-        linenos,
-        breaklines, 
-        breakbefore=.,
-        autogobble,
-        fontsize=\small,
-        numbersep=3mm,
-        xleftmargin=2mm,
-        baselinestretch=1
-    },%
-    overlay={%
-        \begin{tcbclipinterior}
+     fonttitle=\scriptsize\bfseries,
+     listing engine=minted,
+     minted style=monokai,
+     minted language=#2,
+     colback=bg,
+     colupper=white,
+     minted options={%
+         linenos,
+         breaklines, 
+         breakbefore=.,
+         autogobble,
+         fontsize=\small,
+         numbersep=3mm,
+         xleftmargin=2mm,
+         baselinestretch=1},
+     overlay={%
+       \begin{tcbclipinterior}
            \fill[gray!25] (frame.south west) rectangle ([xshift=5mm]frame.north west);
-        \end{tcbclipinterior}
-    },
-    breakable,
-    enhanced,
-    listing only,
-    #1,
-}%
+       \end{tcbclipinterior}},
+     breakable, enhanced, listing only, #1,
+}
+
