@@ -50,17 +50,17 @@ impl ElfIdentification {
 
 pub struct ElfLoader {
     pub elf_header: Box<dyn ElfHeader>,
-    pub prog_headers: Vec<ProgramHeader64>,
-    pub sect_headers: Vec<SectionHeader64>,
+    pub prog_headers: Vec<Box<dyn ProgramHeader>>,
+    pub sect_headers: Vec<Box<dyn SectionHeader>>,
     pub functions: Vec<Function>,
     pub mem_data: Mmap,
 }
 
 impl ElfLoader {
-    fn addr2offset(prog_headers: &[ProgramHeader64], addr: u64) -> Option<u64> {
+    fn addr2offset(prog_headers: &[Box<dyn ProgramHeader>], addr: u64) -> Option<u64> {
         let mut addr_table = Vec::new();
         for seg in prog_headers {
-            addr_table.push((seg.p_offset, seg.p_paddr));
+            addr_table.push(seg.offset_and_addr());
         }
 
         addr_table.sort_by(|x, y| (x.1).cmp(&y.1));
@@ -76,21 +76,20 @@ impl ElfLoader {
 
     fn create_func_table(
         mmap: &[u8],
-        prog_headers: &[ProgramHeader64],
-        sect_headers: &[SectionHeader64],
+        prog_headers: &[Box<dyn ProgramHeader>],
+        sect_headers: &[Box<dyn SectionHeader>],
     ) -> Vec<Function> {
-        let symtab = sect_headers.iter().find(|s| s.sh_name == ".symtab");
-        let strtab = sect_headers.iter().find(|s| s.sh_name == ".strtab");
+        let symtab = sect_headers.iter().find(|s| s.sh_name() == ".symtab");
+        let strtab = sect_headers.iter().find(|s| s.sh_name() == ".strtab");
 
         const ST_SIZE: usize = 24;
         let mut functions: Vec<Function> = Vec::new();
         if let (Some(symtab), Some(strtab)) = (symtab, strtab) {
-            for symtab_off in (symtab.sh_offset..symtab.sh_offset + symtab.sh_size).step_by(ST_SIZE)
-            {
+            for symtab_off in symtab.section_range().step_by(ST_SIZE) {
                 let st_info = mmap[symtab_off as usize + 4];
                 if st_info & 0xf == 2 {
                     let st_name_off = get_u32(mmap, symtab_off as usize);
-                    let st_name = mmap[(strtab.sh_offset + st_name_off as u64) as usize..]
+                    let st_name = mmap[(strtab.sh_offset() + st_name_off as u64) as usize..]
                         .iter()
                         .take_while(|c| **c as char != '\0')
                         .map(|c| *c as char)
@@ -126,17 +125,23 @@ impl ElfLoader {
     }
 }
 
-trait ElfHeader {
+pub trait ElfHeader {
     fn show(&self);
 }
 
-trait ProgramHeader {
+pub trait ProgramHeader {
     fn show(&self, id: usize);
     fn dump(&self, mmap: &[u8]);
+    fn offset_and_addr(&self) -> (u64, u64);
 }
 
-trait SectionHeader {
-    fn get_sh_name(mmap: &[u8], section_head: usize, name_table_head: usize) -> String;
+pub trait SectionHeader {
+    fn get_sh_name(mmap: &[u8], section_head: usize, name_table_head: usize) -> String
+    where
+        Self: Sized;
+    fn sh_name(&self) -> &str;
+    fn sh_offset(&self) -> u64;
+    fn section_range(&self) -> std::ops::Range<u64>;
     fn type_to_str(&self) -> &'static str;
     fn show(&self, id: usize);
     fn dump(&self, mmap: &[u8]);

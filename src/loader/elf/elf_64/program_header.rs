@@ -29,14 +29,14 @@ pub struct ProgramHeader64 {
 }
 
 impl ProgramHeader64 {
-    pub fn new(mmap: &[u8], elf_header: &ElfHeader64) -> Vec<Self> {
-        let mut new_prog = Vec::new();
+    pub fn new(mmap: &[u8], elf_header: &ElfHeader64) -> Vec<Box<dyn ProgramHeader>> {
+        let mut new_prog: Vec<Box<dyn ProgramHeader>> = Vec::new();
 
         for segment_num in 0..elf_header.e_phnum {
             let segment_start: usize =
                 (elf_header.e_phoff + (elf_header.e_phentsize * segment_num) as u64) as usize;
 
-            new_prog.push(ProgramHeader64 {
+            new_prog.push(Box::new(ProgramHeader64 {
                 p_type: get_u32(mmap, segment_start),
                 p_flags: get_u32(mmap, segment_start + 4),
                 p_offset: get_u64(mmap, segment_start + 8),
@@ -45,7 +45,7 @@ impl ProgramHeader64 {
                 p_filesz: get_u64(mmap, segment_start + 32),
                 p_memsz: get_u64(mmap, segment_start + 48),
                 p_align: get_u64(mmap, segment_start + 56),
-            });
+            }));
         }
 
         new_prog
@@ -75,5 +75,9 @@ impl ProgramHeader for ProgramHeader64 {
             }
             print!("{:08x} ", get_u32(mmap, dump_part as usize));
         }
+    }
+
+    fn offset_and_addr(&self) -> (u64, u64) {
+        (self.p_offset, self.p_paddr)
     }
 }

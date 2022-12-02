@@ -19,8 +19,8 @@ pub struct SectionHeader64 {
 }
 
 impl SectionHeader64 {
-    pub fn new(mmap: &[u8], elf_header: &ElfHeader64) -> Vec<Self> {
-        let mut new_sect = Vec::new();
+    pub fn new(mmap: &[u8], elf_header: &ElfHeader64) -> Vec<Box<dyn SectionHeader>> {
+        let mut new_sect: Vec<Box<dyn SectionHeader>> = Vec::new();
         let name_table =
             elf_header.e_shoff + (elf_header.e_shentsize * elf_header.e_shstrndx) as u64;
         let name_table_off: usize = get_u64(mmap, (name_table as usize) + 24) as usize;
@@ -29,7 +29,7 @@ impl SectionHeader64 {
             let section_head: usize =
                 (elf_header.e_shoff + (elf_header.e_shentsize * section_num) as u64) as usize;
 
-            new_sect.push(SectionHeader64 {
+            new_sect.push(Box::new(SectionHeader64 {
                 sh_name: Self::get_sh_name(mmap, section_head, name_table_off),
                 sh_type: get_u32(mmap, section_head + 4),
                 sh_flags: get_u64(mmap, section_head + 8),
@@ -40,7 +40,7 @@ impl SectionHeader64 {
                 sh_info: get_u32(mmap, section_head + 44),
                 sh_addralign: get_u64(mmap, section_head + 48),
                 sh_entsize: get_u64(mmap, section_head + 56),
-            });
+            }));
         }
 
         new_sect
@@ -48,7 +48,10 @@ impl SectionHeader64 {
 }
 
 impl SectionHeader for SectionHeader64 {
-    fn get_sh_name(mmap: &[u8], section_head: usize, name_table_head: usize) -> String {
+    fn get_sh_name(mmap: &[u8], section_head: usize, name_table_head: usize) -> String
+    where
+        Self: Sized,
+    {
         let name_id: usize = get_u32(mmap, section_head) as usize;
         let mut sh_name: String = String::new();
 
@@ -60,6 +63,18 @@ impl SectionHeader for SectionHeader64 {
         }
 
         sh_name
+    }
+
+    fn sh_name(&self) -> &str {
+        &self.sh_name
+    }
+
+    fn sh_offset(&self) -> u64 {
+        self.sh_offset
+    }
+
+    fn section_range(&self) -> std::ops::Range<u64> {
+        self.sh_offset..self.sh_offset + self.sh_size
     }
 
     fn type_to_str(&self) -> &'static str {
