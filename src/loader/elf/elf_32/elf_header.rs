@@ -1,4 +1,4 @@
-use crate::loader::elf::ElfIdentification;
+use crate::loader::elf::{ElfHeader, ElfIdentification};
 use crate::loader::{get_u16, get_u32};
 
 fn get_elf_type_name(elf_type: u16) -> &'static str {
@@ -12,7 +12,7 @@ fn get_elf_type_name(elf_type: u16) -> &'static str {
     }
 }
 
-pub struct ElfHeader {
+pub struct ElfHeader32 {
     e_ident: ElfIdentification,
     e_type: u16,
     e_machine: u16,
@@ -29,10 +29,10 @@ pub struct ElfHeader {
     pub e_shstrndx: u16,
 }
 
-impl ElfHeader {
-    pub fn new(mmap: &[u8]) -> ElfHeader {
+impl ElfHeader32 {
+    pub fn new(mmap: &[u8]) -> Box<Self> {
         const ELF_HEADER_START: usize = 16;
-        ElfHeader {
+        Box::new(ElfHeader32 {
             e_ident: ElfIdentification::new(mmap),
             e_type: get_u16(mmap, ELF_HEADER_START),
             e_machine: get_u16(mmap, ELF_HEADER_START + 2),
@@ -47,10 +47,12 @@ impl ElfHeader {
             e_shentsize: get_u16(mmap, ELF_HEADER_START + 30),
             e_shnum: get_u16(mmap, ELF_HEADER_START + 32),
             e_shstrndx: get_u16(mmap, ELF_HEADER_START + 34),
-        }
+        })
     }
+}
 
-    pub fn show(&self) {
+impl ElfHeader for ElfHeader32 {
+    fn show(&self) {
         println!("================ elf header ================");
         self.e_ident.show();
         println!("e_type:\t\t{}", get_elf_type_name(self.e_type));

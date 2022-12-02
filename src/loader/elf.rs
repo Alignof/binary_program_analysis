@@ -2,6 +2,9 @@ mod elf_32;
 mod elf_64;
 
 use crate::loader::{get_u32, get_u64, Function, Loader};
+use elf_32::elf_header::ElfHeader32;
+use elf_32::program_header::ProgramHeader32;
+use elf_32::section_header::SectionHeader32;
 use elf_64::elf_header::ElfHeader64;
 use elf_64::program_header::ProgramHeader64;
 use elf_64::section_header::SectionHeader64;
@@ -110,9 +113,9 @@ impl ElfLoader {
     }
 
     pub fn new(mapped_data: Mmap) -> Box<dyn Loader> {
-        let new_elf = ElfHeader64::new(&mapped_data);
-        let new_prog = ProgramHeader64::new(&mapped_data, &new_elf);
-        let new_sect = SectionHeader64::new(&mapped_data, &new_elf);
+        let new_elf = ElfHeader32::new(&mapped_data);
+        let new_prog = ProgramHeader32::new(&mapped_data, &new_elf);
+        let new_sect = SectionHeader32::new(&mapped_data, &new_elf);
         let new_func = Self::create_func_table(&mapped_data, &new_prog, &new_sect);
 
         Box::new(ElfLoader {
