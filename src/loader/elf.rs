@@ -57,7 +57,7 @@ pub struct ElfLoader {
 }
 
 impl ElfLoader {
-    fn addr2offset(prog_headers: &Vec<ProgramHeader64>, addr: u64) -> Option<u64> {
+    fn addr2offset(prog_headers: &[ProgramHeader64], addr: u64) -> Option<u64> {
         let mut addr_table = Vec::new();
         for seg in prog_headers {
             addr_table.push((seg.p_offset, seg.p_paddr));
@@ -76,21 +76,11 @@ impl ElfLoader {
 
     fn create_func_table(
         mmap: &[u8],
-        prog_headers: &Vec<ProgramHeader64>,
-        sect_headers: &Vec<SectionHeader64>,
+        prog_headers: &[ProgramHeader64],
+        sect_headers: &[SectionHeader64],
     ) -> Vec<Function> {
-        let symtab = sect_headers.iter().find_map(|s| {
-            if s.sh_name == ".symtab" {
-                return Some(s);
-            }
-            None
-        });
-        let strtab = sect_headers.iter().find_map(|s| {
-            if s.sh_name == ".strtab" {
-                return Some(s);
-            }
-            None
-        });
+        let symtab = sect_headers.iter().find(|s| s.sh_name == ".symtab");
+        let strtab = sect_headers.iter().find(|s| s.sh_name == ".strtab");
 
         const ST_SIZE: usize = 24;
         let mut functions: Vec<Function> = Vec::new();

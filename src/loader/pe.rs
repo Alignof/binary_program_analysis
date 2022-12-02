@@ -18,19 +18,9 @@ pub struct PeLoader {
 }
 
 impl PeLoader {
-    fn create_func_table(mmap: &[u8], sect_headers: &Vec<SectionHeader>) -> Vec<Function> {
-        let symtab = sect_headers.iter().find_map(|s| {
-            if s.name == ".symtab" {
-                return Some(s);
-            }
-            None
-        });
-        let strtab = sect_headers.iter().find_map(|s| {
-            if s.name == ".strtab" {
-                return Some(s);
-            }
-            None
-        });
+    fn create_func_table(mmap: &[u8], sect_headers: &[SectionHeader]) -> Vec<Function> {
+        let symtab = sect_headers.iter().find(|s| s.name == ".symtab");
+        let strtab = sect_headers.iter().find(|s| s.name == ".strtab");
 
         const ST_SIZE: usize = 32;
         let mut functions: Vec<Function> = Vec::new();
