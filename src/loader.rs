@@ -99,4 +99,5 @@ pub trait Loader {
     fn disassemble(&self);
     fn show_all_header(&self);
     fn analysis(&self);
+    fn byte_histogram(&self);
 }

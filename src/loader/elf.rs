@@ -244,4 +244,66 @@ impl Loader for ElfLoader {
         println!("instructions: {}", inst_count);
         println!("======================");
     }
+
+    fn byte_histogram(&self) {
+        use plotters::prelude::*;
+        const MAX_COUNT: u32 = 1030;
+
+        let mut histogram = (0..255)
+            .collect::<Vec<u8>>()
+            .iter()
+            .map(|x| (*x, 0_u32))
+            .collect::<HashMap<u8, u32>>();
+
+        for m in self.mem_data.iter() {
+            *histogram.entry(*m).or_insert(0) += 1;
+        }
+
+        let root = BitMapBackend::new("target/histogram.png", (1080, 720)).into_drawing_area();
+        root.fill(&WHITE).unwrap();
+
+        let mut chart = ChartBuilder::on(&root)
+            .x_label_area_size(35)
+            .y_label_area_size(40)
+            .margin(10)
+            .caption("Byte histogram", ("sans-serif", 25.0))
+            .build_cartesian_2d((0u32..255u32).into_segmented(), 0u32..MAX_COUNT)
+            .unwrap();
+
+        chart
+            .configure_mesh()
+            .disable_x_mesh()
+            .bold_line_style(&BLACK.mix(0.5))
+            .y_desc("Count")
+            .x_desc("Byte")
+            .axis_desc_style(("sans-serif", 15))
+            .draw()
+            .unwrap();
+
+        chart
+            .draw_series(
+                Histogram::vertical(&chart)
+                    .style(RED.filled())
+                    .margin(0)
+                    .data(histogram.iter().map(|(x, y)| (*x as u32, *y))),
+            )
+            .unwrap();
+
+        if let Some(zero_count) = histogram.get(&0) {
+            if zero_count > &MAX_COUNT {
+                root.draw_text(
+                    &format!("↓{}", zero_count),
+                    &TextStyle::from(("sans-serif", 13.0).into_font()),
+                    (47, 30),
+                )
+                .unwrap();
+                root.draw_text(
+                    "≈",
+                    &TextStyle::from(("sans-serif", 20.0).into_font()),
+                    (45, 45),
+                )
+                .unwrap();
+            }
+        }
+    }
 }
