@@ -37,6 +37,10 @@ impl ElfIdentification {
         }
     }
 
+    fn is_elf32(&self) -> bool {
+        self.magic[6] == 1
+    }
+
     fn show(&self) {
         print!("magic:\t");
         for byte in self.magic.iter() {
@@ -113,18 +117,34 @@ impl ElfLoader {
     }
 
     pub fn new(mapped_data: Mmap) -> Box<dyn Loader> {
-        let new_elf = ElfHeader32::new(&mapped_data);
-        let new_prog = ProgramHeader32::new(&mapped_data, &new_elf);
-        let new_sect = SectionHeader32::new(&mapped_data, &new_elf);
-        let new_func = Self::create_func_table(&mapped_data, &new_prog, &new_sect);
+        let elf_ident = ElfIdentification::new(&mapped_data);
+        if elf_ident.is_elf32() {
+            let new_elf = ElfHeader32::new(&mapped_data);
+            let new_prog = ProgramHeader32::new(&mapped_data, &new_elf);
+            let new_sect = SectionHeader32::new(&mapped_data, &new_elf);
+            let new_func = Self::create_func_table(&mapped_data, &new_prog, &new_sect);
 
-        Box::new(ElfLoader {
-            elf_header: new_elf,
-            prog_headers: new_prog,
-            sect_headers: new_sect,
-            functions: new_func,
-            mem_data: mapped_data,
-        })
+            Box::new(ElfLoader {
+                elf_header: new_elf,
+                prog_headers: new_prog,
+                sect_headers: new_sect,
+                functions: new_func,
+                mem_data: mapped_data,
+            })
+        } else {
+            let new_elf = ElfHeader64::new(&mapped_data);
+            let new_prog = ProgramHeader64::new(&mapped_data, &new_elf);
+            let new_sect = SectionHeader64::new(&mapped_data, &new_elf);
+            let new_func = Self::create_func_table(&mapped_data, &new_prog, &new_sect);
+
+            Box::new(ElfLoader {
+                elf_header: new_elf,
+                prog_headers: new_prog,
+                sect_headers: new_sect,
+                functions: new_func,
+                mem_data: mapped_data,
+            })
+        }
     }
 }
 
