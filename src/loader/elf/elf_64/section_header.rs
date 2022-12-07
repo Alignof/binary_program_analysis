@@ -116,13 +116,13 @@ impl SectionHeader for SectionHeader64 {
     fn dump(&self, mmap: &[u8]) {
         const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
         const EXAMPLE_CODE_BITNESS: u32 = 64;
-        let EXAMPLE_CODE_RIP: u64 = self.sh_addr;
+        let example_code_rip: u64 = self.sh_addr;
         if self.sh_flags >> 2 & 1 == 1 {
             let bytes = &mmap[self.sh_offset as usize..(self.sh_offset + self.sh_size) as usize];
             let mut decoder = Decoder::with_ip(
                 EXAMPLE_CODE_BITNESS,
                 bytes,
-                EXAMPLE_CODE_RIP,
+                example_code_rip,
                 DecoderOptions::NONE,
             );
             let mut formatter = NasmFormatter::new();
@@ -140,7 +140,7 @@ impl SectionHeader for SectionHeader64 {
                 formatter.format(&instruction, &mut output);
 
                 print!("{:016X} ", instruction.ip());
-                let start_index = (instruction.ip() - EXAMPLE_CODE_RIP) as usize;
+                let start_index = (instruction.ip() - example_code_rip) as usize;
                 let instr_bytes = &bytes[start_index..start_index + instruction.len()];
                 for b in instr_bytes.iter() {
                     print!("{:02X}", b);

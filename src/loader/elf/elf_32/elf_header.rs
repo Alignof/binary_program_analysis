@@ -30,10 +30,10 @@ pub struct ElfHeader32 {
 }
 
 impl ElfHeader32 {
-    pub fn new(mmap: &[u8]) -> Box<Self> {
+    pub fn new(mmap: &[u8], elf_ident: ElfIdentification) -> Box<Self> {
         const ELF_HEADER_START: usize = 16;
         Box::new(ElfHeader32 {
-            e_ident: ElfIdentification::new(mmap),
+            e_ident: elf_ident,
             e_type: get_u16(mmap, ELF_HEADER_START),
             e_machine: get_u16(mmap, ELF_HEADER_START + 2),
             e_version: get_u32(mmap, ELF_HEADER_START + 4),

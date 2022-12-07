@@ -11,7 +11,7 @@ use elf_64::section_header::SectionHeader64;
 use memmap::Mmap;
 use std::collections::HashMap;
 
-struct ElfIdentification {
+pub struct ElfIdentification {
     magic: [u8; 16],
     class: u8,
     endian: u8,
@@ -38,7 +38,8 @@ impl ElfIdentification {
     }
 
     fn is_elf32(&self) -> bool {
-        self.magic[6] == 1
+        const EI_CLASS: usize = 4;
+        dbg!(self.magic[EI_CLASS]) == 1
     }
 
     fn show(&self) {
@@ -119,7 +120,8 @@ impl ElfLoader {
     pub fn new(mapped_data: Mmap) -> Box<dyn Loader> {
         let elf_ident = ElfIdentification::new(&mapped_data);
         if elf_ident.is_elf32() {
-            let new_elf = ElfHeader32::new(&mapped_data);
+            dbg!("elf32");
+            let new_elf = ElfHeader32::new(&mapped_data, elf_ident);
             let new_prog = ProgramHeader32::new(&mapped_data, &new_elf);
             let new_sect = SectionHeader32::new(&mapped_data, &new_elf);
             let new_func = Self::create_func_table(&mapped_data, &new_prog, &new_sect);
@@ -132,7 +134,8 @@ impl ElfLoader {
                 mem_data: mapped_data,
             })
         } else {
-            let new_elf = ElfHeader64::new(&mapped_data);
+            dbg!("elf64");
+            let new_elf = ElfHeader64::new(&mapped_data, elf_ident);
             let new_prog = ProgramHeader64::new(&mapped_data, &new_elf);
             let new_sect = SectionHeader64::new(&mapped_data, &new_elf);
             let new_func = Self::create_func_table(&mapped_data, &new_prog, &new_sect);
