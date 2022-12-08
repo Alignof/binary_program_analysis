@@ -270,7 +270,6 @@ impl Loader for ElfLoader {
 
     fn byte_histogram(&self) {
         use plotters::prelude::*;
-        const MAX_COUNT: u32 = 1030;
 
         let mut histogram = (0..255)
             .collect::<Vec<u8>>()
@@ -281,16 +280,17 @@ impl Loader for ElfLoader {
         for m in self.mem_data.iter() {
             *histogram.entry(*m).or_insert(0) += 1;
         }
+        let max_count: u32 = *histogram.iter().max_by(|a, b| a.1.cmp(&b.1)).unwrap().1;
 
         let root = BitMapBackend::new("target/histogram.png", (1080, 720)).into_drawing_area();
         root.fill(&WHITE).unwrap();
 
         let mut chart = ChartBuilder::on(&root)
-            .x_label_area_size(35)
-            .y_label_area_size(40)
+            .x_label_area_size(50)
+            .y_label_area_size(50)
             .margin(10)
             .caption("Byte histogram", ("sans-serif", 25.0))
-            .build_cartesian_2d((0u32..255u32).into_segmented(), 0u32..MAX_COUNT)
+            .build_cartesian_2d((0u32..255u32).into_segmented(), 0u32..max_count)
             .unwrap();
 
         chart
@@ -313,7 +313,7 @@ impl Loader for ElfLoader {
             .unwrap();
 
         if let Some(zero_count) = histogram.get(&0) {
-            if zero_count > &MAX_COUNT {
+            if zero_count > &max_count {
                 root.draw_text(
                     &format!("↓{}", zero_count),
                     &TextStyle::from(("sans-serif", 13.0).into_font()),

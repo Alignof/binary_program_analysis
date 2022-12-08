@@ -115,6 +115,7 @@ impl Loader for PeLoader {
         for m in self.mem_data.iter() {
             *histogram.entry(*m).or_insert(0) += 1;
         }
+        let max_count: u32 = *histogram.iter().max_by(|a, b| a.1.cmp(&b.1)).unwrap().1;
 
         let root = BitMapBackend::new("target/histogram.png", (1080, 720)).into_drawing_area();
         root.fill(&WHITE).unwrap();
@@ -122,15 +123,15 @@ impl Loader for PeLoader {
         let mut chart = ChartBuilder::on(&root)
             .x_label_area_size(35)
             .y_label_area_size(40)
-            .margin(5)
+            .margin(10)
             .caption("Byte histogram", ("sans-serif", 25.0))
-            .build_cartesian_2d((0u32..255u32).into_segmented(), 0u32..500u32)
+            .build_cartesian_2d((0u32..255u32).into_segmented(), 0u32..max_count)
             .unwrap();
 
         chart
             .configure_mesh()
             .disable_x_mesh()
-            .bold_line_style(&WHITE.mix(0.3))
+            .bold_line_style(&BLACK.mix(0.5))
             .y_desc("Count")
             .x_desc("Byte")
             .axis_desc_style(("sans-serif", 15))
@@ -141,10 +142,26 @@ impl Loader for PeLoader {
             .draw_series(
                 Histogram::vertical(&chart)
                     .style(RED.filled())
+                    .margin(0)
                     .data(histogram.iter().map(|(x, y)| (*x as u32, *y))),
             )
             .unwrap();
 
-        root.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
+        if let Some(zero_count) = histogram.get(&0) {
+            if zero_count > &max_count {
+                root.draw_text(
+                    &format!("↓{}", zero_count),
+                    &TextStyle::from(("sans-serif", 13.0).into_font()),
+                    (47, 30),
+                )
+                .unwrap();
+                root.draw_text(
+                    "≈",
+                    &TextStyle::from(("sans-serif", 20.0).into_font()),
+                    (45, 45),
+                )
+                .unwrap();
+            }
+        }
     }
 }
