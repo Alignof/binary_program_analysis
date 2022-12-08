@@ -311,22 +311,5 @@ impl Loader for ElfLoader {
                     .data(histogram.iter().map(|(x, y)| (*x as u32, *y))),
             )
             .unwrap();
-
-        if let Some(zero_count) = histogram.get(&0) {
-            if zero_count > &max_count {
-                root.draw_text(
-                    &format!("↓{}", zero_count),
-                    &TextStyle::from(("sans-serif", 13.0).into_font()),
-                    (47, 30),
-                )
-                .unwrap();
-                root.draw_text(
-                    "≈",
-                    &TextStyle::from(("sans-serif", 20.0).into_font()),
-                    (45, 45),
-                )
-                .unwrap();
-            }
-        }
     }
 }
