@@ -117,12 +117,24 @@ impl Loader for PeLoader {
         }
         let max_count: u32 = *histogram.iter().max_by(|a, b| a.1.cmp(&b.1)).unwrap().1;
 
+        // calc entropy
+        let mut entropy: f32 = 0.0;
+        for (_, count) in histogram.iter() {
+            let p: f32 = (*count as f32) / (self.mem_data.len() as f32);
+            entropy -= p * p.log(2.0);
+        }
+        println!("entropy: {}", entropy);
+
+        // let mut histogram = histogram.iter().collect::<Vec<(&u8, &u32)>>();
+        // histogram.sort_by(|a, b| b.1.cmp(a.1));
+        // dbg!(histogram);
+
         let root = BitMapBackend::new("target/histogram.png", (1080, 720)).into_drawing_area();
         root.fill(&WHITE).unwrap();
 
         let mut chart = ChartBuilder::on(&root)
-            .x_label_area_size(35)
-            .y_label_area_size(40)
+            .x_label_area_size(50)
+            .y_label_area_size(50)
             .margin(10)
             .caption("Byte histogram", ("sans-serif", 25.0))
             .build_cartesian_2d((0u32..255u32).into_segmented(), 0u32..max_count)

@@ -39,7 +39,7 @@ impl ElfIdentification {
 
     fn is_elf32(&self) -> bool {
         const EI_CLASS: usize = 4;
-        dbg!(self.magic[EI_CLASS]) == 1
+        self.magic[EI_CLASS] == 1
     }
 
     fn show(&self) {
@@ -120,7 +120,6 @@ impl ElfLoader {
     pub fn new(mapped_data: Mmap) -> Box<dyn Loader> {
         let elf_ident = ElfIdentification::new(&mapped_data);
         if elf_ident.is_elf32() {
-            dbg!("elf32");
             let new_elf = ElfHeader32::new(&mapped_data, elf_ident);
             let new_prog = ProgramHeader32::new(&mapped_data, &new_elf);
             let new_sect = SectionHeader32::new(&mapped_data, &new_elf);
@@ -134,7 +133,6 @@ impl ElfLoader {
                 mem_data: mapped_data,
             })
         } else {
-            dbg!("elf64");
             let new_elf = ElfHeader64::new(&mapped_data, elf_ident);
             let new_prog = ProgramHeader64::new(&mapped_data, &new_elf);
             let new_sect = SectionHeader64::new(&mapped_data, &new_elf);
@@ -281,6 +279,18 @@ impl Loader for ElfLoader {
             *histogram.entry(*m).or_insert(0) += 1;
         }
         let max_count: u32 = *histogram.iter().max_by(|a, b| a.1.cmp(&b.1)).unwrap().1;
+
+        // calc entropy
+        let mut entropy: f32 = 0.0;
+        for (_, count) in histogram.iter() {
+            let p: f32 = (*count as f32) / (self.mem_data.len() as f32);
+            entropy -= p * p.log(2.0);
+        }
+        println!("entropy: {}", entropy);
+
+        // let mut histogram = histogram.iter().collect::<Vec<(&u8, &u32)>>();
+        // histogram.sort_by(|a, b| b.1.cmp(a.1));
+        // dbg!(histogram);
 
         let root = BitMapBackend::new("target/histogram.png", (1080, 720)).into_drawing_area();
         root.fill(&WHITE).unwrap();
