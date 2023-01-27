@@ -2,13 +2,16 @@ mod elf_32;
 mod elf_64;
 
 use crate::loader::{get_u32, get_u64, Function, Loader};
+use elf_32::elf_header::ElfHeader32;
+use elf_32::program_header::ProgramHeader32;
+use elf_32::section_header::SectionHeader32;
 use elf_64::elf_header::ElfHeader64;
 use elf_64::program_header::ProgramHeader64;
 use elf_64::section_header::SectionHeader64;
 use memmap::Mmap;
 use std::collections::HashMap;
 
-struct ElfIdentification {
+pub struct ElfIdentification {
     magic: [u8; 16],
     class: u8,
     endian: u8,
@@ -34,6 +37,11 @@ impl ElfIdentification {
         }
     }
 
+    fn is_elf32(&self) -> bool {
+        const EI_CLASS: usize = 4;
+        self.magic[EI_CLASS] == 1
+    }
+
     fn show(&self) {
         print!("magic:\t");
         for byte in self.magic.iter() {
@@ -50,21 +58,21 @@ impl ElfIdentification {
 
 pub struct ElfLoader {
     pub elf_header: Box<dyn ElfHeader>,
-    pub prog_headers: Vec<ProgramHeader64>,
-    pub sect_headers: Vec<SectionHeader64>,
+    pub prog_headers: Vec<Box<dyn ProgramHeader>>,
+    pub sect_headers: Vec<Box<dyn SectionHeader>>,
     pub functions: Vec<Function>,
     pub mem_data: Mmap,
 }
 
 impl ElfLoader {
-    fn addr2offset(prog_headers: &Vec<ProgramHeader64>, addr: u64) -> Option<u64> {
+    fn addr2offset(prog_headers: &[Box<dyn ProgramHeader>], addr: u64) -> Option<u64> {
         let mut addr_table = Vec::new();
         for seg in prog_headers {
-            addr_table.push((seg.p_offset, seg.p_paddr));
+            addr_table.push(seg.offset_and_addr());
         }
 
         addr_table.sort_by(|x, y| (x.1).cmp(&y.1));
-        for w in (&addr_table).windows(2) {
+        for w in addr_table.windows(2) {
             let (a, z) = (w[0], w[1]);
             if a.1 <= addr && addr < z.1 {
                 return Some(a.0 + (addr - a.1));
@@ -76,31 +84,20 @@ impl ElfLoader {
 
     fn create_func_table(
         mmap: &[u8],
-        prog_headers: &Vec<ProgramHeader64>,
-        sect_headers: &Vec<SectionHeader64>,
+        prog_headers: &[Box<dyn ProgramHeader>],
+        sect_headers: &[Box<dyn SectionHeader>],
     ) -> Vec<Function> {
-        let symtab = sect_headers.iter().find_map(|s| {
-            if s.sh_name == ".symtab" {
-                return Some(s);
-            }
-            None
-        });
-        let strtab = sect_headers.iter().find_map(|s| {
-            if s.sh_name == ".strtab" {
-                return Some(s);
-            }
-            None
-        });
+        let symtab = sect_headers.iter().find(|s| s.sh_name() == ".symtab");
+        let strtab = sect_headers.iter().find(|s| s.sh_name() == ".strtab");
 
         const ST_SIZE: usize = 24;
         let mut functions: Vec<Function> = Vec::new();
         if let (Some(symtab), Some(strtab)) = (symtab, strtab) {
-            for symtab_off in (symtab.sh_offset..symtab.sh_offset + symtab.sh_size).step_by(ST_SIZE)
-            {
+            for symtab_off in symtab.section_range().step_by(ST_SIZE) {
                 let st_info = mmap[symtab_off as usize + 4];
                 if st_info & 0xf == 2 {
                     let st_name_off = get_u32(mmap, symtab_off as usize);
-                    let st_name = mmap[(strtab.sh_offset + st_name_off as u64) as usize..]
+                    let st_name = mmap[(strtab.sh_offset() + st_name_off as u64) as usize..]
                         .iter()
                         .take_while(|c| **c as char != '\0')
                         .map(|c| *c as char)
@@ -121,32 +118,54 @@ impl ElfLoader {
     }
 
     pub fn new(mapped_data: Mmap) -> Box<dyn Loader> {
-        let new_elf = ElfHeader64::new(&mapped_data);
-        let new_prog = ProgramHeader64::new(&mapped_data, &new_elf);
-        let new_sect = SectionHeader64::new(&mapped_data, &new_elf);
-        let new_func = Self::create_func_table(&mapped_data, &new_prog, &new_sect);
+        let elf_ident = ElfIdentification::new(&mapped_data);
+        if elf_ident.is_elf32() {
+            let new_elf = ElfHeader32::new(&mapped_data, elf_ident);
+            let new_prog = ProgramHeader32::new(&mapped_data, &new_elf);
+            let new_sect = SectionHeader32::new(&mapped_data, &new_elf);
+            let new_func = Self::create_func_table(&mapped_data, &new_prog, &new_sect);
 
-        Box::new(ElfLoader {
-            elf_header: new_elf,
-            prog_headers: new_prog,
-            sect_headers: new_sect,
-            functions: new_func,
-            mem_data: mapped_data,
-        })
+            Box::new(ElfLoader {
+                elf_header: new_elf,
+                prog_headers: new_prog,
+                sect_headers: new_sect,
+                functions: new_func,
+                mem_data: mapped_data,
+            })
+        } else {
+            let new_elf = ElfHeader64::new(&mapped_data, elf_ident);
+            let new_prog = ProgramHeader64::new(&mapped_data, &new_elf);
+            let new_sect = SectionHeader64::new(&mapped_data, &new_elf);
+            let new_func = Self::create_func_table(&mapped_data, &new_prog, &new_sect);
+
+            Box::new(ElfLoader {
+                elf_header: new_elf,
+                prog_headers: new_prog,
+                sect_headers: new_sect,
+                functions: new_func,
+                mem_data: mapped_data,
+            })
+        }
     }
 }
 
-trait ElfHeader {
+pub trait ElfHeader {
     fn show(&self);
 }
 
-trait ProgramHeader {
+pub trait ProgramHeader {
     fn show(&self, id: usize);
     fn dump(&self, mmap: &[u8]);
+    fn offset_and_addr(&self) -> (u64, u64);
 }
 
-trait SectionHeader {
-    fn get_sh_name(mmap: &[u8], section_head: usize, name_table_head: usize) -> String;
+pub trait SectionHeader {
+    fn get_sh_name(mmap: &[u8], section_head: usize, name_table_head: usize) -> String
+    where
+        Self: Sized;
+    fn sh_name(&self) -> &str;
+    fn sh_offset(&self) -> u64;
+    fn section_range(&self) -> std::ops::Range<u64>;
     fn type_to_str(&self) -> &'static str;
     fn show(&self, id: usize);
     fn dump(&self, mmap: &[u8]);
@@ -245,5 +264,62 @@ impl Loader for ElfLoader {
         println!("-----");
         println!("instructions: {}", inst_count);
         println!("======================");
+    }
+
+    fn byte_histogram(&self) {
+        use plotters::prelude::*;
+
+        let mut histogram = (0..255)
+            .collect::<Vec<u8>>()
+            .iter()
+            .map(|x| (*x, 0_u32))
+            .collect::<HashMap<u8, u32>>();
+
+        for m in self.mem_data.iter() {
+            *histogram.entry(*m).or_insert(0) += 1;
+        }
+        let max_count: u32 = *histogram.iter().max_by(|a, b| a.1.cmp(b.1)).unwrap().1;
+
+        // calc entropy
+        let mut entropy: f32 = 0.0;
+        for (_, count) in histogram.iter() {
+            let p: f32 = (*count as f32) / (self.mem_data.len() as f32);
+            entropy -= p * p.log(2.0);
+        }
+        println!("entropy: {}", entropy);
+
+        // let mut histogram = histogram.iter().collect::<Vec<(&u8, &u32)>>();
+        // histogram.sort_by(|a, b| b.1.cmp(a.1));
+        // dbg!(histogram);
+
+        let root = BitMapBackend::new("target/histogram.png", (1080, 720)).into_drawing_area();
+        root.fill(&WHITE).unwrap();
+
+        let mut chart = ChartBuilder::on(&root)
+            .x_label_area_size(50)
+            .y_label_area_size(50)
+            .margin(10)
+            .caption("Byte histogram", ("sans-serif", 25.0))
+            .build_cartesian_2d((0u32..255u32).into_segmented(), 0u32..max_count)
+            .unwrap();
+
+        chart
+            .configure_mesh()
+            .disable_x_mesh()
+            .bold_line_style(BLACK.mix(0.5))
+            .y_desc("Count")
+            .x_desc("Byte")
+            .axis_desc_style(("sans-serif", 15))
+            .draw()
+            .unwrap();
+
+        chart
+            .draw_series(
+                Histogram::vertical(&chart)
+                    .style(RED.filled())
+                    .margin(0)
+                    .data(histogram.iter().map(|(x, y)| (*x as u32, *y))),
+            )
+            .unwrap();
     }
 }

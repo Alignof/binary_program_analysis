@@ -18,19 +18,9 @@ pub struct PeLoader {
 }
 
 impl PeLoader {
-    fn create_func_table(mmap: &[u8], sect_headers: &Vec<SectionHeader>) -> Vec<Function> {
-        let symtab = sect_headers.iter().find_map(|s| {
-            if s.name == ".symtab" {
-                return Some(s);
-            }
-            None
-        });
-        let strtab = sect_headers.iter().find_map(|s| {
-            if s.name == ".strtab" {
-                return Some(s);
-            }
-            None
-        });
+    fn create_func_table(mmap: &[u8], sect_headers: &[SectionHeader]) -> Vec<Function> {
+        let symtab = sect_headers.iter().find(|s| s.name == ".symtab");
+        let strtab = sect_headers.iter().find(|s| s.name == ".strtab");
 
         const ST_SIZE: usize = 32;
         let mut functions: Vec<Function> = Vec::new();
@@ -111,5 +101,62 @@ impl Loader for PeLoader {
             func.inst_analysis(&mut inst_list, &self.mem_data);
             println!("{:#?}", inst_list);
         }
+    }
+
+    fn byte_histogram(&self) {
+        use plotters::prelude::*;
+
+        let mut histogram = (0..255)
+            .collect::<Vec<u8>>()
+            .iter()
+            .map(|x| (*x, 0_u32))
+            .collect::<HashMap<u8, u32>>();
+
+        for m in self.mem_data.iter() {
+            *histogram.entry(*m).or_insert(0) += 1;
+        }
+        let max_count: u32 = *histogram.iter().max_by(|a, b| a.1.cmp(b.1)).unwrap().1;
+
+        // calc entropy
+        let mut entropy: f32 = 0.0;
+        for (_, count) in histogram.iter() {
+            let p: f32 = (*count as f32) / (self.mem_data.len() as f32);
+            entropy -= p * p.log(2.0);
+        }
+        println!("entropy: {}", entropy);
+
+        // let mut histogram = histogram.iter().collect::<Vec<(&u8, &u32)>>();
+        // histogram.sort_by(|a, b| b.1.cmp(a.1));
+        // dbg!(histogram);
+
+        let root = BitMapBackend::new("target/histogram.png", (1080, 720)).into_drawing_area();
+        root.fill(&WHITE).unwrap();
+
+        let mut chart = ChartBuilder::on(&root)
+            .x_label_area_size(50)
+            .y_label_area_size(50)
+            .margin(10)
+            .caption("Byte histogram", ("sans-serif", 25.0))
+            .build_cartesian_2d((0u32..255u32).into_segmented(), 0u32..max_count)
+            .unwrap();
+
+        chart
+            .configure_mesh()
+            .disable_x_mesh()
+            .bold_line_style(BLACK.mix(0.5))
+            .y_desc("Count")
+            .x_desc("Byte")
+            .axis_desc_style(("sans-serif", 15))
+            .draw()
+            .unwrap();
+
+        chart
+            .draw_series(
+                Histogram::vertical(&chart)
+                    .style(RED.filled())
+                    .margin(0)
+                    .data(histogram.iter().map(|(x, y)| (*x as u32, *y))),
+            )
+            .unwrap();
     }
 }
