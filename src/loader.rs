@@ -41,7 +41,7 @@ impl Function {
         println!("<function: {}>", self.name);
         const HEXBYTES_COLUMN_BYTE_LENGTH: usize = 10;
         const EXAMPLE_CODE_BITNESS: u32 = 64;
-        let start_addr: u64 = self.addr as u64;
+        let start_addr: u64 = self.addr;
         let bytes = &mmap[self.addr as usize..(self.addr + self.size) as usize];
         let mut decoder = Decoder::with_ip(
             EXAMPLE_CODE_BITNESS,

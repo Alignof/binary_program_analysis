@@ -72,7 +72,7 @@ impl ElfLoader {
         }
 
         addr_table.sort_by(|x, y| (x.1).cmp(&y.1));
-        for w in (&addr_table).windows(2) {
+        for w in addr_table.windows(2) {
             let (a, z) = (w[0], w[1]);
             if a.1 <= addr && addr < z.1 {
                 return Some(a.0 + (addr - a.1));
@@ -278,7 +278,7 @@ impl Loader for ElfLoader {
         for m in self.mem_data.iter() {
             *histogram.entry(*m).or_insert(0) += 1;
         }
-        let max_count: u32 = *histogram.iter().max_by(|a, b| a.1.cmp(&b.1)).unwrap().1;
+        let max_count: u32 = *histogram.iter().max_by(|a, b| a.1.cmp(b.1)).unwrap().1;
 
         // calc entropy
         let mut entropy: f32 = 0.0;
@@ -306,7 +306,7 @@ impl Loader for ElfLoader {
         chart
             .configure_mesh()
             .disable_x_mesh()
-            .bold_line_style(&BLACK.mix(0.5))
+            .bold_line_style(BLACK.mix(0.5))
             .y_desc("Count")
             .x_desc("Byte")
             .axis_desc_style(("sans-serif", 15))
