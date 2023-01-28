@@ -10,7 +10,12 @@ mod tests {
         let file = File::open(filename)?;
         let mapped_data = unsafe { Mmap::map(&file)? };
         let loader = loader::elf::ElfLoader::new(mapped_data);
+
         loader.header_show();
+        loader.show_segment();
+        loader.show_section();
+        loader.disassemble();
+
         Ok(())
     }
 
@@ -20,7 +25,12 @@ mod tests {
         let file = File::open(filename)?;
         let mapped_data = unsafe { Mmap::map(&file)? };
         let loader = loader::elf::ElfLoader::new(mapped_data);
+
         loader.header_show();
+        loader.show_segment();
+        loader.show_section();
+        loader.disassemble();
+
         Ok(())
     }
 }
