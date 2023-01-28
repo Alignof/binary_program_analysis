@@ -13,4 +13,14 @@ mod tests {
         loader.header_show();
         Ok(())
     }
+
+    #[test]
+    fn pe_64_test() -> std::io::Result<()> {
+        let filename = "./test/Pe64.exe";
+        let file = File::open(filename)?;
+        let mapped_data = unsafe { Mmap::map(&file)? };
+        let loader = loader::pe::PeLoader::new(mapped_data);
+        loader.header_show();
+        Ok(())
+    }
 }
