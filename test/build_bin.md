@@ -30,5 +30,8 @@ Pe32.exe: PE32 executable (console) Intel 80386, for MS Windows, 18 sections
 
 ## Pe64
 ```sh
+$ x86_64-w64-mingw32-gcc test.c -o Pe64.exe
+$ file Pe64.exe
+Pe64.exe: PE32+ executable (console) x86-64, for MS Windows, 20 sections
 ```
 
