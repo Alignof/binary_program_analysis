@@ -1,5 +1,7 @@
 pub mod elf;
+mod elf_test;
 pub mod pe;
+mod pe_test;
 
 use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter};
 use std::collections::HashMap;
