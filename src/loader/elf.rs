@@ -1,7 +1,7 @@
 mod elf_32;
 mod elf_64;
 
-use crate::loader::{get_u32, get_u64, Function, Loader};
+use crate::loader::{get_u32, get_u64, Arch, Function, Loader};
 use elf_32::elf_header::ElfHeader32;
 use elf_32::program_header::ProgramHeader32;
 use elf_32::section_header::SectionHeader32;
@@ -37,9 +37,13 @@ impl ElfIdentification {
         }
     }
 
-    fn is_elf32(&self) -> bool {
+    fn get_arch(&self) -> Arch {
         const EI_CLASS: usize = 4;
-        self.magic[EI_CLASS] == 1
+        if self.magic[EI_CLASS] == 1 {
+            Arch::Bit32
+        } else {
+            Arch::Bit64
+        }
     }
 
     fn show(&self) {
@@ -71,6 +75,7 @@ impl ElfLoader {
             addr_table.push(seg.offset_and_addr());
         }
 
+        eprintln!("{addr:x}");
         addr_table.sort_by(|x, y| (x.1).cmp(&y.1));
         for w in addr_table.windows(2) {
             let (a, z) = (w[0], w[1]);
@@ -84,16 +89,20 @@ impl ElfLoader {
 
     fn create_func_table(
         mmap: &[u8],
+        arch: Arch,
         prog_headers: &[Box<dyn ProgramHeader>],
         sect_headers: &[Box<dyn SectionHeader>],
     ) -> Vec<Function> {
         let symtab = sect_headers.iter().find(|s| s.sh_name() == ".symtab");
         let strtab = sect_headers.iter().find(|s| s.sh_name() == ".strtab");
 
-        const ST_SIZE: usize = 24;
+        let st_size: usize = match arch {
+            Arch::Bit32 => 16,
+            Arch::Bit64 => 24,
+        };
         let mut functions: Vec<Function> = Vec::new();
         if let (Some(symtab), Some(strtab)) = (symtab, strtab) {
-            for symtab_off in symtab.section_range().step_by(ST_SIZE) {
+            for symtab_off in symtab.section_range().step_by(st_size) {
                 let st_info = mmap[symtab_off as usize + 4];
                 if st_info & 0xf == 2 {
                     let st_name_off = get_u32(mmap, symtab_off as usize);
@@ -119,32 +128,37 @@ impl ElfLoader {
 
     pub fn new(mapped_data: Mmap) -> Box<dyn Loader> {
         let elf_ident = ElfIdentification::new(&mapped_data);
-        if elf_ident.is_elf32() {
-            let new_elf = ElfHeader32::new(&mapped_data, elf_ident);
-            let new_prog = ProgramHeader32::new(&mapped_data, &new_elf);
-            let new_sect = SectionHeader32::new(&mapped_data, &new_elf);
-            let new_func = Self::create_func_table(&mapped_data, &new_prog, &new_sect);
+        match elf_ident.get_arch() {
+            Arch::Bit32 => {
+                let new_elf = ElfHeader32::new(&mapped_data, elf_ident);
+                let new_prog = ProgramHeader32::new(&mapped_data, &new_elf);
+                let new_sect = SectionHeader32::new(&mapped_data, &new_elf);
+                let new_func =
+                    Self::create_func_table(&mapped_data, Arch::Bit32, &new_prog, &new_sect);
 
-            Box::new(ElfLoader {
-                elf_header: new_elf,
-                prog_headers: new_prog,
-                sect_headers: new_sect,
-                functions: new_func,
-                mem_data: mapped_data,
-            })
-        } else {
-            let new_elf = ElfHeader64::new(&mapped_data, elf_ident);
-            let new_prog = ProgramHeader64::new(&mapped_data, &new_elf);
-            let new_sect = SectionHeader64::new(&mapped_data, &new_elf);
-            let new_func = Self::create_func_table(&mapped_data, &new_prog, &new_sect);
+                Box::new(ElfLoader {
+                    elf_header: new_elf,
+                    prog_headers: new_prog,
+                    sect_headers: new_sect,
+                    functions: new_func,
+                    mem_data: mapped_data,
+                })
+            }
+            Arch::Bit64 => {
+                let new_elf = ElfHeader64::new(&mapped_data, elf_ident);
+                let new_prog = ProgramHeader64::new(&mapped_data, &new_elf);
+                let new_sect = SectionHeader64::new(&mapped_data, &new_elf);
+                let new_func =
+                    Self::create_func_table(&mapped_data, Arch::Bit64, &new_prog, &new_sect);
 
-            Box::new(ElfLoader {
-                elf_header: new_elf,
-                prog_headers: new_prog,
-                sect_headers: new_sect,
-                functions: new_func,
-                mem_data: mapped_data,
-            })
+                Box::new(ElfLoader {
+                    elf_header: new_elf,
+                    prog_headers: new_prog,
+                    sect_headers: new_sect,
+                    functions: new_func,
+                    mem_data: mapped_data,
+                })
+            }
         }
     }
 }
