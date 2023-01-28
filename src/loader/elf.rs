@@ -75,7 +75,6 @@ impl ElfLoader {
             addr_table.push(seg.offset_and_addr());
         }
 
-        eprintln!("{addr:x}");
         addr_table.sort_by(|x, y| (x.1).cmp(&y.1));
         for w in addr_table.windows(2) {
             let (a, z) = (w[0], w[1]);
@@ -295,10 +294,12 @@ impl Loader for ElfLoader {
         let max_count: u32 = *histogram.iter().max_by(|a, b| a.1.cmp(b.1)).unwrap().1;
 
         // calc entropy
-        let mut entropy: f32 = 0.0;
+        let mut entropy: f64 = 0.0;
         for (_, count) in histogram.iter() {
-            let p: f32 = (*count as f32) / (self.mem_data.len() as f32);
-            entropy -= p * p.log(2.0);
+            let p: f64 = (*count as f64) / (self.mem_data.len() as f64);
+            if p != 0.0 {
+                entropy -= p * p.log(2.0);
+            }
         }
         println!("entropy: {}", entropy);
 
