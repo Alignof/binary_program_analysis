@@ -31,6 +31,11 @@ pub fn get_u64(mmap: &[u8], index: usize) -> u64 {
         | (mmap[index + 0] as u64)
 }
 
+pub enum Arch {
+    Bit32,
+    Bit64,
+}
+
 #[derive(Debug)]
 pub struct Function {
     name: String,
