@@ -2,7 +2,8 @@ mod msdos_header;
 mod nt_headers;
 mod section_header;
 
-use crate::loader::{get_u32, get_u64, Function, Loader};
+use crate::loader::function::Function;
+use crate::loader::{get_u32, get_u64, Loader};
 use memmap::Mmap;
 use msdos_header::MsDosHeader;
 use nt_headers::NtHeader;

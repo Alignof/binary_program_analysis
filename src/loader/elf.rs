@@ -1,7 +1,8 @@
 mod elf_32;
 mod elf_64;
 
-use crate::loader::{get_u32, get_u64, Arch, Function, Loader};
+use crate::loader::function::Function;
+use crate::loader::{get_u32, get_u64, Arch, Loader};
 use elf_32::elf_header::ElfHeader32;
 use elf_32::program_header::ProgramHeader32;
 use elf_32::section_header::SectionHeader32;
