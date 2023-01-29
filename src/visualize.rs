@@ -1,9 +1,13 @@
+mod hex_dump;
+
+use hex_dump::HexDump;
 use std::collections::HashMap;
 
 pub fn dump(mem_data: &[u8]) {
-    for m in mem_data.iter() {
-        print!("{m:02x} ")
-    }
+    let hex_dump = HexDump::new(mem_data);
+    hex_dump.print_header();
+    hex_dump.print_data();
+    hex_dump.print_footer();
 }
 
 pub fn create_byte_histogram(mem_data: &[u8]) {
