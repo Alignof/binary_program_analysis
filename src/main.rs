@@ -1,4 +1,5 @@
 mod loader;
+mod visualize;
 
 use clap::{arg, AppSettings, ArgGroup};
 use memmap::Mmap;
@@ -11,6 +12,7 @@ pub enum ExeOption {
     OPT_PROG,
     OPT_SECT,
     OPT_DISASEM,
+    OPT_DUMP,
     OPT_ANALYSIS,
     OPT_HISTOGRAM,
 }
@@ -21,7 +23,8 @@ fn main() -> std::io::Result<()> {
         .arg(arg!(-e --elfhead ... "Show header"))
         .arg(arg!(-p --program ... "Show all segments"))
         .arg(arg!(-s --section ... "Show all sections"))
-        .arg(arg!(-d --dump ... "Dump ELF/PE"))
+        .arg(arg!(-d --disasem ... "Disassemble ELF/PE"))
+        .arg(arg!(--dump ... "Dump ELF/PE"))
         .arg(arg!(-a --analyze ... "Analyze target binaly file"))
         .arg(arg!(--histogram ... "Show byte histogram"))
         .group(
@@ -42,18 +45,20 @@ fn main() -> std::io::Result<()> {
             app.is_present("elfhead"),
             app.is_present("program"),
             app.is_present("section"),
+            app.is_present("disasem"),
             app.is_present("dump"),
             app.is_present("analyze"),
             app.is_present("histogram"),
         )
     };
     let exe_option = match flag_map() {
-        (true, _, _, _, _, _) => ExeOption::OPT_ELFHEAD,
-        (_, true, _, _, _, _) => ExeOption::OPT_PROG,
-        (_, _, true, _, _, _) => ExeOption::OPT_SECT,
-        (_, _, _, true, _, _) => ExeOption::OPT_DISASEM,
-        (_, _, _, _, true, _) => ExeOption::OPT_ANALYSIS,
-        (_, _, _, _, _, true) => ExeOption::OPT_HISTOGRAM,
+        (true, _, _, _, _, _, _) => ExeOption::OPT_ELFHEAD,
+        (_, true, _, _, _, _, _) => ExeOption::OPT_PROG,
+        (_, _, true, _, _, _, _) => ExeOption::OPT_SECT,
+        (_, _, _, true, _, _, _) => ExeOption::OPT_DISASEM,
+        (_, _, _, _, true, _, _) => ExeOption::OPT_DUMP,
+        (_, _, _, _, _, true, _) => ExeOption::OPT_ANALYSIS,
+        (_, _, _, _, _, _, true) => ExeOption::OPT_HISTOGRAM,
         _ => ExeOption::OPT_DEFAULT,
     };
 
@@ -77,8 +82,9 @@ fn main() -> std::io::Result<()> {
         ExeOption::OPT_PROG => loader.show_segment(),
         ExeOption::OPT_SECT => loader.show_section(),
         ExeOption::OPT_DISASEM => loader.disassemble(),
+        ExeOption::OPT_DUMP => visualize::dump(loader.mem_data()),
         ExeOption::OPT_ANALYSIS => loader.analysis(),
-        ExeOption::OPT_HISTOGRAM => loader.byte_histogram(),
+        ExeOption::OPT_HISTOGRAM => visualize::create_byte_histogram(loader.mem_data()),
     }
 
     Ok(())
