@@ -23,20 +23,21 @@ impl<'a> HexDump<'_> {
         println!("│");
     }
 
+    fn print_hex(&self, hex: Option<&u8>) {
+        match hex {
+            Some(hex) => print!("{hex:02x} "),
+            None => print!("   "),
+        }
+    }
+
     pub fn print_data(&self) {
-        for (row, chunk) in self
-            .mem_data
-            .chunks(8 * 2)
-            .map(|x| x.chunks(8).collect::<Vec<_>>())
-            .enumerate()
-        {
-            self.print_row_number(row);
-            let _ = chunk[0].iter().for_each(|hex| print!("{hex:02x} "));
-            self.print_delimiter();
-            if chunk.len() == 2 {
-                let _ = chunk[1].iter().for_each(|hex| print!("{hex:02x} "));
-            } else {
-                (0..8).for_each(|_| print!("   "));
+        for (row, chunk) in self.mem_data.chunks(16).enumerate() {
+            self.print_row_number(row << 4);
+            for index in 0..16 {
+                if index == 8 {
+                    self.print_delimiter();
+                }
+                self.print_hex(chunk.get(index));
             }
             self.print_end();
         }
