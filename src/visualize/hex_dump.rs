@@ -14,11 +14,11 @@ impl<'a> HexDump<'_> {
     }
 
     fn print_row_number(&self, row: usize) {
-        print!("│{row:08x}│ ");
+        print!("│{row:08x}│");
     }
 
     fn print_delimiter(&self) {
-        print!("┊ ");
+        print!("┊");
     }
 
     fn print_end(&self) {
@@ -27,8 +27,13 @@ impl<'a> HexDump<'_> {
 
     fn print_hex(&self, hex: Option<&u8>) {
         match hex {
-            Some(hex) => print!("{}", format!("{hex:02x} ").on_red()),
-            None => print!("   "),
+            Some(hex) => {
+                let red = ((*hex as u32 >> 5) * 255 / 7) as u8;
+                let green = (((*hex as u32 >> 2) & 0b111) * 255 / 7) as u8;
+                let blue = ((*hex as u32 & 0b11) * 255 / 3) as u8;
+                print!("{}", format!("{hex:02x}").on_truecolor(red, green, blue))
+            }
+            None => print!("  "),
         }
     }
 
