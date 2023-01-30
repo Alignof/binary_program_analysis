@@ -10,3 +10,4 @@ memmap = "0.7.0"
 iced-x86 = "1.17.0"
 clap = {version = "3.0.5", features=["cargo"]}
 plotters = "0.3.4"
+colored = "2.0.0"

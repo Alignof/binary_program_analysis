@@ -1,3 +1,5 @@
+use colored::Colorize;
+
 pub struct HexDump<'a> {
     mem_data: &'a [u8],
 }
@@ -25,7 +27,7 @@ impl<'a> HexDump<'_> {
 
     fn print_hex(&self, hex: Option<&u8>) {
         match hex {
-            Some(hex) => print!("{hex:02x} "),
+            Some(hex) => print!("{}", format!("{hex:02x} ").on_red()),
             None => print!("   "),
         }
     }
