@@ -65,8 +65,8 @@ impl<'a> HexDump<'_> {
             Some(hex) => match hex {
                 0 => "⋄".truecolor(125, 125, 125),
                 1..=31 => "•".green(),
-                32 => " ".normal(),
-                33..=126 => std::str::from_utf8(&[*hex]).unwrap().bright_blue(),
+                32 => "␣".truecolor(0, 80, 255),
+                33..=126 => std::str::from_utf8(&[*hex]).unwrap().blue(),
                 127 => "•".green(),
                 _ => "×".yellow(),
             },
