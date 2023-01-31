@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::loader;
+    use crate::{loader, visualize};
     use memmap::Mmap;
     use std::fs::File;
 
@@ -11,6 +11,11 @@ mod tests {
         let mapped_data = unsafe { Mmap::map(&file)? };
         let loader = loader::pe::PeLoader::new(mapped_data);
         loader.header_show();
+        loader.show_segment();
+        loader.show_section();
+        loader.disassemble();
+        visualize::dump(loader.mem_data());
+
         Ok(())
     }
 
@@ -21,6 +26,10 @@ mod tests {
         let mapped_data = unsafe { Mmap::map(&file)? };
         let loader = loader::pe::PeLoader::new(mapped_data);
         loader.header_show();
+        loader.show_segment();
+        loader.show_section();
+        visualize::dump(loader.mem_data());
+
         Ok(())
     }
 }

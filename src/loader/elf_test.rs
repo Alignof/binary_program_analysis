@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::loader;
+    use crate::{loader, visualize};
     use memmap::Mmap;
     use std::fs::File;
 
@@ -15,6 +15,7 @@ mod tests {
         loader.show_segment();
         loader.show_section();
         loader.disassemble();
+        visualize::dump(loader.mem_data());
 
         Ok(())
     }
@@ -30,6 +31,7 @@ mod tests {
         loader.show_segment();
         loader.show_section();
         loader.disassemble();
+        visualize::dump(loader.mem_data());
 
         Ok(())
     }
