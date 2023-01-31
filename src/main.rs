@@ -68,23 +68,28 @@ fn main() -> std::io::Result<()> {
     const ELF_HEADER_MAGIC: [u8; 4] = [0x7f, 0x45, 0x4c, 0x46];
     const PE_HEADER_MAGIC: [u8; 2] = [0x4d, 0x5a];
 
-    let loader = if mapped_data[0..4] == ELF_HEADER_MAGIC {
-        loader::elf::ElfLoader::new(mapped_data)
-    } else if mapped_data[0..2] == PE_HEADER_MAGIC {
-        loader::pe::PeLoader::new(mapped_data)
-    } else {
-        panic!("unrecognized file format")
-    };
-
     match exe_option {
-        ExeOption::OPT_DEFAULT => loader.header_show(),
-        ExeOption::OPT_ELFHEAD => loader.header_show(),
-        ExeOption::OPT_PROG => loader.show_segment(),
-        ExeOption::OPT_SECT => loader.show_section(),
-        ExeOption::OPT_DISASEM => loader.disassemble(),
-        ExeOption::OPT_DUMP => visualize::dump(loader.mem_data()),
-        ExeOption::OPT_ANALYSIS => loader.analysis(),
-        ExeOption::OPT_HISTOGRAM => visualize::create_byte_histogram(loader.mem_data()),
+        ExeOption::OPT_DUMP => visualize::dump(&mapped_data),
+        ExeOption::OPT_HISTOGRAM => visualize::create_byte_histogram(&mapped_data),
+        _ => {
+            let loader = if mapped_data[0..4] == ELF_HEADER_MAGIC {
+                loader::elf::ElfLoader::new(mapped_data)
+            } else if mapped_data[0..2] == PE_HEADER_MAGIC {
+                loader::pe::PeLoader::new(mapped_data)
+            } else {
+                panic!("unrecognized file format")
+            };
+
+            match exe_option {
+                ExeOption::OPT_DEFAULT => loader.header_show(),
+                ExeOption::OPT_ELFHEAD => loader.header_show(),
+                ExeOption::OPT_PROG => loader.show_segment(),
+                ExeOption::OPT_SECT => loader.show_section(),
+                ExeOption::OPT_DISASEM => loader.disassemble(),
+                ExeOption::OPT_ANALYSIS => loader.analysis(),
+                _ => unreachable!(),
+            }
+        }
     }
 
     Ok(())
