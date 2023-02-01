@@ -104,7 +104,7 @@ impl Loader for PeLoader {
         for func in self.functions.iter() {
             let mut inst_list = HashMap::new();
             func.inst_analysis(&mut inst_list, &self.mem_data);
-            println!("{:#?}", inst_list);
+            println!("{inst_list:#?}");
         }
     }
 }

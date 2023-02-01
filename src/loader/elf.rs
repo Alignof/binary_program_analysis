@@ -50,7 +50,7 @@ impl ElfIdentification {
     fn show(&self) {
         print!("magic:\t");
         for byte in self.magic.iter() {
-            print!("{:02x} ", byte);
+            print!("{byte:02x} ");
         }
         println!();
         println!("class:\t\t{:?}", self.class);
@@ -263,8 +263,8 @@ impl Loader for ElfLoader {
                                 None
                             }
                         })
-                        .unwrap_or(format!("{}", call_addr));
-                    print!("func_{} ", call_func);
+                        .unwrap_or(format!("{call_addr}"));
+                    print!("func_{call_func} ");
                 }
                 println!();
             }
@@ -280,7 +280,7 @@ impl Loader for ElfLoader {
             println!("{}: {}", t.0, t.1);
         }
         println!("-----");
-        println!("instructions: {}", inst_count);
+        println!("instructions: {inst_count}");
         println!("======================");
     }
 }

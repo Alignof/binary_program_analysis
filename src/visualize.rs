@@ -39,7 +39,7 @@ pub fn create_byte_histogram(mem_data: &[u8]) {
             entropy -= p * p.log(2.0);
         }
     }
-    println!("entropy: {}", entropy);
+    println!("entropy: {entropy}");
 
     let root = BitMapBackend::new("target/histogram.png", (1080, 720)).into_drawing_area();
     root.fill(&WHITE).unwrap();

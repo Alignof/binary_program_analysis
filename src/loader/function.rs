@@ -38,14 +38,14 @@ impl Function {
             let start_index = (instruction.ip() - start_addr) as usize;
             let instr_bytes = &bytes[start_index..start_index + instruction.len()];
             for b in instr_bytes.iter() {
-                print!("{:02X}", b);
+                print!("{b:02X}");
             }
             if instr_bytes.len() < HEXBYTES_COLUMN_BYTE_LENGTH {
                 for _ in 0..HEXBYTES_COLUMN_BYTE_LENGTH - instr_bytes.len() {
                     print!("  ");
                 }
             }
-            println!(" {}", output);
+            println!(" {output}");
 
             *inst_list
                 .entry(format!("{:?}", instruction.mnemonic()))
