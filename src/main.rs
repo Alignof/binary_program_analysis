@@ -26,14 +26,14 @@ fn main() -> std::io::Result<()> {
         .arg(arg!(-s --section ... "Show all sections"))
         .arg(arg!(-d --disasem ... "Disassemble ELF/PE"))
         .arg(arg!(-a --analyze ... "Analyze target binaly file"))
-        .arg(arg!(--dump ... "Dump binary file"))
-        .arg(arg!(--diff <other> ... "diff binary files"))
-        .arg(arg!(--histogram ... "Show byte histogram"))
         .group(
             ArgGroup::new("run option")
-                .args(&["elfhead", "dump", "diff", "program", "section", "analyze"])
+                .args(&["elfhead", "program", "section", "disasem", "analyze"])
                 .required(false),
         )
+        .arg(arg!(--dump ... "Dump binary file").required(false))
+        .arg(arg!(--diff <other> ... "diff binary files").required(false))
+        .arg(arg!(--histogram ... "Show byte histogram").required(false))
         .setting(AppSettings::DeriveDisplayOrder)
         .get_matches();
 
