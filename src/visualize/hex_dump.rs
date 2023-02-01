@@ -74,6 +74,15 @@ impl<'a> HexDump<'_> {
         }
     }
 
+    fn print_ascii(&self, ascii: Vec<Option<u8>>) {
+        ascii.iter().enumerate().for_each(|(i, c)| {
+            if i == 8 {
+                self.print_delimiter()
+            }
+            print!("{}", self.hex_to_ascii(c.as_ref()));
+        });
+    }
+
     pub fn print_data(&self) {
         for (row, chunk) in self.mem_data.chunks(16).enumerate() {
             self.print_row_number(row << 4);
@@ -87,13 +96,8 @@ impl<'a> HexDump<'_> {
             }
 
             print!("│");
+            self.print_ascii(ascii);
 
-            ascii.iter().enumerate().for_each(|(i, c)| {
-                if i == 8 {
-                    self.print_delimiter()
-                }
-                print!("{}", self.hex_to_ascii(c.as_ref()));
-            });
             self.print_end();
         }
     }
