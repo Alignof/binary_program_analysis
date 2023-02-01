@@ -29,31 +29,29 @@ impl<'a> HexDump<'_> {
         const STEP: u8 = 6;
         match hex {
             Some(hex) => {
-                let step_up = |start: u8| (*hex - start).checked_mul(STEP).unwrap_or(255);
+                let step_up = |start: u8| (*hex - start).saturating_mul(STEP);
                 let step_down = |start: u8| {
-                    255_u8
-                        .checked_sub((*hex - start).checked_mul(STEP).unwrap_or(255))
-                        .unwrap_or(0)
+                    255_u8.saturating_sub((*hex - start).saturating_mul(STEP))
                 };
                 let red = match *hex {
                     0..=127 => 0,
                     128..=169 => step_up(128),
                     170..=255 => 255,
-                } as u8;
+                };
                 let green = match *hex {
                     0..=41 => 0,
                     42..=83 => step_up(42),
                     84..=169 => 255,
                     170..=211 => step_down(170),
                     212..=255 => step_up(212),
-                } as u8;
+                };
                 let blue = match *hex {
                     0..=41 => step_up(0),
                     42..=83 => 255,
                     84..=127 => step_down(84),
                     128..=211 => 0,
                     212..=255 => step_up(212),
-                } as u8;
+                };
                 print!("{}", format!("{hex:02x}").on_truecolor(red, green, blue))
             }
             None => print!("  "),
