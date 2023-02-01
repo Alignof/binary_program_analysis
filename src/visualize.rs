@@ -10,6 +10,13 @@ pub fn dump(mem_data: &[u8]) {
     hex_dump.print_footer();
 }
 
+pub fn diff(mem_data: &[u8], other: &[u8]) {
+    let hex_dump = HexDump::new(mem_data);
+    hex_dump.print_header();
+    hex_dump.print_diff(other);
+    hex_dump.print_footer();
+}
+
 pub fn create_byte_histogram(mem_data: &[u8]) {
     use plotters::prelude::*;
 

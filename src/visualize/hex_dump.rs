@@ -75,6 +75,7 @@ impl<'a> HexDump<'_> {
     }
 
     fn print_ascii(&self, ascii: Vec<Option<u8>>) {
+        print!("│");
         ascii.iter().enumerate().for_each(|(i, c)| {
             if i == 8 {
                 self.print_delimiter()
@@ -95,10 +96,61 @@ impl<'a> HexDump<'_> {
                 ascii.push(chunk.get(index).copied());
             }
 
-            print!("│");
             self.print_ascii(ascii);
 
             self.print_end();
+        }
+    }
+
+    pub fn print_diff(&self, other: &[u8]) {
+        for (row, (original, target)) in self.mem_data.chunks(16).zip(other.chunks(16)).enumerate()
+        {
+            self.print_row_number(row << 4);
+            let mut ascii: Vec<Option<u8>> = Vec::new();
+            let mut diff: Vec<Option<u8>> = Vec::new();
+            for index in 0..16 {
+                let orig = original.get(index);
+                let targ = target.get(index);
+
+                if index == 8 {
+                    self.print_delimiter();
+                }
+
+                if let Some(hex) = orig {
+                    if orig != targ {
+                        print!("{}", format!("{hex:02x}").on_truecolor(0, 125, 0));
+                        diff.push(targ.copied());
+                    } else {
+                        print!("{hex:02x}");
+                        diff.push(None);
+                    }
+                } else {
+                    print!("  ");
+                }
+
+                ascii.push(orig.copied());
+            }
+
+            self.print_ascii(ascii);
+            self.print_end();
+
+            if !diff.iter().all(|x| x.is_none()) {
+                print!("│  • • • │");
+                for index in 0..16 {
+                    if index == 8 {
+                        self.print_delimiter();
+                    }
+
+                    match diff.get(index) {
+                        Some(Some(hex)) => {
+                            print!("{}", format!("{hex:02x}").on_truecolor(125, 0, 0))
+                        }
+                        Some(None) | None => print!("  "),
+                    }
+                }
+                print!("│        ┊        ");
+                self.print_end();
+            }
         }
     }
 

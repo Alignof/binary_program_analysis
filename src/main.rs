@@ -31,7 +31,7 @@ fn main() -> std::io::Result<()> {
         .arg(arg!(--histogram ... "Show byte histogram"))
         .group(
             ArgGroup::new("run option")
-                .args(&["elfhead", "dump", "program", "section", "analyze"])
+                .args(&["elfhead", "dump", "diff", "program", "section", "analyze"])
                 .required(false),
         )
         .setting(AppSettings::DeriveDisplayOrder)
@@ -75,7 +75,7 @@ fn main() -> std::io::Result<()> {
     match exe_option {
         ExeOption::OPT_DUMP => visualize::dump(&mapped_data),
         ExeOption::OPT_DIFF => {
-            let other_file_path = app.value_of("other").expect("please specify diff target");
+            let other_file_path = app.value_of("diff").expect("please specify diff target");
             let other_file = File::open(other_file_path)?;
             let other = unsafe { Mmap::map(&other_file)? };
             visualize::diff(&mapped_data, &other);
