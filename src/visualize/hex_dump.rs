@@ -25,36 +25,30 @@ impl<'a> HexDump<'_> {
         println!("│");
     }
 
-    fn print_hex(&self, hex: Option<&u8>) {
+    fn hex_to_color(&self, hex: u8) -> (u8, u8, u8) {
         const STEP: u8 = 6;
-        match hex {
-            Some(hex) => {
-                let step_up = |start: u8| (*hex - start).saturating_mul(STEP);
-                let step_down =
-                    |start: u8| 255_u8.saturating_sub((*hex - start).saturating_mul(STEP));
-                let red = match *hex {
-                    0..=127 => 0,
-                    128..=169 => step_up(128),
-                    170..=255 => 255,
-                };
-                let green = match *hex {
-                    0..=41 => 0,
-                    42..=83 => step_up(42),
-                    84..=169 => 255,
-                    170..=211 => step_down(170),
-                    212..=255 => step_up(212),
-                };
-                let blue = match *hex {
-                    0..=41 => step_up(0),
-                    42..=83 => 255,
-                    84..=127 => step_down(84),
-                    128..=211 => 0,
-                    212..=255 => step_up(212),
-                };
-                print!("{}", format!("{hex:02x}").on_truecolor(red, green, blue))
-            }
-            None => print!("  "),
-        }
+        let step_up = |start: u8| (hex - start).saturating_mul(STEP);
+        let step_down = |start: u8| 255_u8.saturating_sub((hex - start).saturating_mul(STEP));
+        let red = match hex {
+            0..=127 => 0,
+            128..=169 => step_up(128),
+            170..=255 => 255,
+        };
+        let green = match hex {
+            0..=41 => 0,
+            42..=83 => step_up(42),
+            84..=169 => 255,
+            170..=211 => step_down(170),
+            212..=255 => step_up(212),
+        };
+        let blue = match hex {
+            0..=41 => step_up(0),
+            42..=83 => 255,
+            84..=127 => step_down(84),
+            128..=211 => 0,
+            212..=255 => step_up(212),
+        };
+        (red, blue, green)
     }
 
     fn hex_to_ascii(&self, hex: Option<&u8>) -> ColoredString {
@@ -89,7 +83,14 @@ impl<'a> HexDump<'_> {
                 if index == 8 {
                     self.print_delimiter();
                 }
-                self.print_hex(chunk.get(index));
+
+                match chunk.get(index) {
+                    Some(hex) => {
+                        let (r, g, b) = self.hex_to_color(*hex);
+                        print!("{}", format!("{hex:02x}").on_truecolor(r, g, b))
+                    }
+                    None => print!("  "),
+                }
                 ascii.push(chunk.get(index).copied());
             }
 
