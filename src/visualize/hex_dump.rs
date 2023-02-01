@@ -30,9 +30,8 @@ impl<'a> HexDump<'_> {
         match hex {
             Some(hex) => {
                 let step_up = |start: u8| (*hex - start).saturating_mul(STEP);
-                let step_down = |start: u8| {
-                    255_u8.saturating_sub((*hex - start).saturating_mul(STEP))
-                };
+                let step_down =
+                    |start: u8| 255_u8.saturating_sub((*hex - start).saturating_mul(STEP));
                 let red = match *hex {
                     0..=127 => 0,
                     128..=169 => step_up(128),
