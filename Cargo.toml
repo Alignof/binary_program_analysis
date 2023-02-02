@@ -1,5 +1,5 @@
 [package]
-name = "readbin"
+name = "unlibit" # anagram of binutil or builtin
 version = "0.1.0"
 edition = "2021"
 

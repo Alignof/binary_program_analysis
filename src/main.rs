@@ -32,7 +32,7 @@ fn main() -> std::io::Result<()> {
                 .required(false),
         )
         .arg(arg!(--dump ... "Dump binary file").required(false))
-        .arg(arg!(--diff <other> ... "diff binary files").required(false))
+        .arg(arg!(--diff <other> ... "Take a diff of the binary files").required(false))
         .arg(arg!(--histogram ... "Show byte histogram").required(false))
         .setting(AppSettings::DeriveDisplayOrder)
         .get_matches();
