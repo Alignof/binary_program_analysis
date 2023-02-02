@@ -3,6 +3,32 @@ mod hex_dump;
 use hex_dump::HexDump;
 use std::collections::HashMap;
 
+fn hex_to_color(hex: u8) -> (u8, u8, u8) {
+    const STEP: u8 = 6;
+    let step_up = |start: u8| (hex - start).saturating_mul(STEP);
+    let step_down = |start: u8| 255_u8.saturating_sub((hex - start).saturating_mul(STEP));
+    let red = match hex {
+        0..=127 => 0,
+        128..=169 => step_up(128),
+        170..=255 => 255,
+    };
+    let green = match hex {
+        0..=41 => 0,
+        42..=83 => step_up(42),
+        84..=169 => 255,
+        170..=211 => step_down(170),
+        212..=255 => step_up(212),
+    };
+    let blue = match hex {
+        0..=41 => step_up(0),
+        42..=83 => 255,
+        84..=127 => step_down(84),
+        128..=211 => 0,
+        212..=255 => step_up(212),
+    };
+    (red, green, blue)
+}
+
 pub fn dump(mem_data: &[u8]) {
     let hex_dump = HexDump::new(mem_data);
     hex_dump.print_header();
@@ -18,9 +44,9 @@ pub fn diff(mem_data: &[u8], other: &[u8]) {
 }
 
 pub fn create_byte_histogram(mem_data: &[u8]) {
-    use plotters::prelude::*;
+    use colored::Colorize;
 
-    let mut histogram = (0..255)
+    let mut histogram = (0..=255)
         .collect::<Vec<u8>>()
         .iter()
         .map(|x| (*x, 0_u32))
@@ -41,33 +67,28 @@ pub fn create_byte_histogram(mem_data: &[u8]) {
     }
     println!("entropy: {entropy}");
 
-    let root = BitMapBackend::new("target/histogram.png", (1080, 720)).into_drawing_area();
-    root.fill(&WHITE).unwrap();
+    const BAR: [&str; 8] = ["", "▏", "▎", "▍", "▌", "▋	", "▊", "▉"];
+    let mut histogram: Vec<(&u8, &u32)> = histogram.iter().collect();
+    histogram.sort_by(|a, b| (a.0).cmp(b.0));
+    for (hex, count) in histogram.iter() {
+        print!("{hex:02x}: ");
+        if **count < 512 {
+            (0..=(*count / 8)).for_each(|_| print!("█"));
+            println!("{} {count}", BAR[(*count % 8) as usize]);
+        } else {
+            (0..=67).for_each(|_| print!("█"));
+            println!("▓▒░ {count}");
+        }
+    }
+    for (hex, count) in histogram.iter() {
+        let parcent = **count as f64 / max_count as f64;
+        let count = (parcent * 255.0) as u8;
+        let (r, g, b) = hex_to_color(count);
+        print!("{}", format!("{hex:02x}").on_truecolor(r, g, b));
 
-    let mut chart = ChartBuilder::on(&root)
-        .x_label_area_size(50)
-        .y_label_area_size(50)
-        .margin(10)
-        .caption("Byte histogram", ("sans-serif", 25.0))
-        .build_cartesian_2d((0u32..255u32).into_segmented(), 0u32..max_count)
-        .unwrap();
-
-    chart
-        .configure_mesh()
-        .disable_x_mesh()
-        .bold_line_style(BLACK.mix(0.5))
-        .y_desc("Count")
-        .x_desc("Byte")
-        .axis_desc_style(("sans-serif", 15))
-        .draw()
-        .unwrap();
-
-    chart
-        .draw_series(
-            Histogram::vertical(&chart)
-                .style(RED.filled())
-                .margin(0)
-                .data(histogram.iter().map(|(x, y)| (*x as u32, *y))),
-        )
-        .unwrap();
+        if *hex % 16 == 15 {
+            println!();
+        }
+    }
+    println!();
 }
