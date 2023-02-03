@@ -8,7 +8,7 @@ use std::fs::File;
 #[allow(non_camel_case_types)]
 pub enum ExeOption {
     OPT_DEFAULT,
-    OPT_ELFHEAD,
+    OPT_HEADER,
     OPT_PROG,
     OPT_SECT,
     OPT_DISASEM,
@@ -55,7 +55,7 @@ fn main() -> std::io::Result<()> {
         )
     };
     let exe_option = match flag_map() {
-        (true, _, _, _, _, _, _, _) => ExeOption::OPT_ELFHEAD,
+        (true, _, _, _, _, _, _, _) => ExeOption::OPT_HEADER,
         (_, true, _, _, _, _, _, _) => ExeOption::OPT_PROG,
         (_, _, true, _, _, _, _, _) => ExeOption::OPT_SECT,
         (_, _, _, true, _, _, _, _) => ExeOption::OPT_DISASEM,
@@ -92,7 +92,7 @@ fn main() -> std::io::Result<()> {
 
             match exe_option {
                 ExeOption::OPT_DEFAULT => loader.header_show(),
-                ExeOption::OPT_ELFHEAD => loader.header_show(),
+                ExeOption::OPT_HEADER => loader.header_show(),
                 ExeOption::OPT_PROG => loader.show_segment(),
                 ExeOption::OPT_SECT => loader.show_section(),
                 ExeOption::OPT_DISASEM => loader.disassemble(),
