@@ -21,14 +21,14 @@ pub enum ExeOption {
 fn main() -> std::io::Result<()> {
     let app = clap::app_from_crate!()
         .arg(arg!(<filename> "target file path").group("ELF"))
-        .arg(arg!(-e --elfhead ... "Show header"))
+        .arg(arg!(-h --header ... "Show header"))
         .arg(arg!(-p --program ... "Show all segments"))
         .arg(arg!(-s --section ... "Show all sections"))
         .arg(arg!(-d --disasem ... "Disassemble ELF/PE"))
         .arg(arg!(-a --analyze ... "Analyze target binaly file"))
         .group(
             ArgGroup::new("run option")
-                .args(&["elfhead", "program", "section", "disasem", "analyze"])
+                .args(&["header", "program", "section", "disasem", "analyze"])
                 .required(false),
         )
         .arg(arg!(--dump ... "Dump binary file").required(false))
@@ -44,7 +44,7 @@ fn main() -> std::io::Result<()> {
 
     let flag_map = || {
         (
-            app.is_present("elfhead"),
+            app.is_present("header"),
             app.is_present("program"),
             app.is_present("section"),
             app.is_present("disasem"),
