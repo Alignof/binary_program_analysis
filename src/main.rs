@@ -21,19 +21,19 @@ pub enum ExeOption {
 fn main() -> std::io::Result<()> {
     let app = clap::app_from_crate!()
         .arg(arg!(<filename> "target file path").group("ELF"))
-        .arg(arg!(-e --elfhead ... "Show header"))
+        .arg(arg!(-h --header ... "Show header"))
         .arg(arg!(-p --program ... "Show all segments"))
         .arg(arg!(-s --section ... "Show all sections"))
         .arg(arg!(-d --disasem ... "Disassemble ELF/PE"))
         .arg(arg!(-a --analyze ... "Analyze target binaly file"))
-        .arg(arg!(--dump ... "Dump binary file"))
-        .arg(arg!(--diff <other> ... "diff binary files"))
-        .arg(arg!(--histogram ... "Show byte histogram"))
         .group(
             ArgGroup::new("run option")
-                .args(&["elfhead", "dump", "diff", "program", "section", "analyze"])
+                .args(&["header", "program", "section", "disasem", "analyze"])
                 .required(false),
         )
+        .arg(arg!(--dump ... "Dump binary file").required(false))
+        .arg(arg!(--diff <other> ... "Take a diff of the binary files").required(false))
+        .arg(arg!(--histogram ... "Show byte histogram").required(false))
         .setting(AppSettings::DeriveDisplayOrder)
         .get_matches();
 
@@ -44,7 +44,7 @@ fn main() -> std::io::Result<()> {
 
     let flag_map = || {
         (
-            app.is_present("elfhead"),
+            app.is_present("header"),
             app.is_present("program"),
             app.is_present("section"),
             app.is_present("disasem"),

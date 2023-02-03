@@ -198,7 +198,6 @@ impl Loader for ElfLoader {
     fn show_segment(&self) {
         for (id, prog) in self.prog_headers.iter().enumerate() {
             prog.show(id);
-            prog.dump(&self.mem_data);
             println!("\n\n");
         }
     }
