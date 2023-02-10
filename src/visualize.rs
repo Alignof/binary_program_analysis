@@ -67,7 +67,7 @@ pub fn create_byte_histogram(mem_data: &[u8]) {
     }
     println!("entropy: {entropy}");
 
-    const BAR: [&str; 8] = ["", "▏", "▎", "▍", "▌", "▋	", "▊", "▉"];
+    const BAR: [&str; 8] = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"];
     let mut histogram: Vec<(&u8, &u32)> = histogram.iter().collect();
     histogram.sort_by(|a, b| (a.0).cmp(b.0));
     for (hex, count) in histogram.iter() {
