@@ -9,13 +9,19 @@ mod tests {
         let filename = "./test/Elf32";
         let file = File::open(filename)?;
         let mapped_data = unsafe { Mmap::map(&file)? };
-        let loader = loader::elf::ElfLoader::new(mapped_data);
+        let other_filename = "./test/Elf64";
+        let other_file = File::open(other_filename)?;
+        let other = unsafe { Mmap::map(&other_file)? };
 
+        visualize::dump(&mapped_data);
+        visualize::diff(&mapped_data, &other);
+
+        let loader = loader::elf::ElfLoader::new(mapped_data);
         loader.header_show();
         loader.show_segment();
         loader.show_section();
         loader.disassemble();
-        visualize::dump(loader.mem_data());
+        loader.analysis();
 
         Ok(())
     }
@@ -25,13 +31,19 @@ mod tests {
         let filename = "./test/Elf64";
         let file = File::open(filename)?;
         let mapped_data = unsafe { Mmap::map(&file)? };
-        let loader = loader::elf::ElfLoader::new(mapped_data);
+        let other_filename = "./test/Elf32";
+        let other_file = File::open(other_filename)?;
+        let other = unsafe { Mmap::map(&other_file)? };
 
+        visualize::dump(&mapped_data);
+        visualize::diff(&mapped_data, &other);
+
+        let loader = loader::elf::ElfLoader::new(mapped_data);
         loader.header_show();
         loader.show_segment();
         loader.show_section();
         loader.disassemble();
-        visualize::dump(loader.mem_data());
+        loader.analysis();
 
         Ok(())
     }

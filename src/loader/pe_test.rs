@@ -9,12 +9,19 @@ mod tests {
         let filename = "./test/Pe32.exe";
         let file = File::open(filename)?;
         let mapped_data = unsafe { Mmap::map(&file)? };
+        let other_filename = "./test/Pe64.exe";
+        let other_file = File::open(other_filename)?;
+        let other = unsafe { Mmap::map(&other_file)? };
+
+        visualize::dump(&mapped_data);
+        visualize::diff(&mapped_data, &other);
+
         let loader = loader::pe::PeLoader::new(mapped_data);
         loader.header_show();
         loader.show_segment();
         loader.show_section();
         loader.disassemble();
-        visualize::dump(loader.mem_data());
+        loader.analysis();
 
         Ok(())
     }
@@ -24,11 +31,19 @@ mod tests {
         let filename = "./test/Pe64.exe";
         let file = File::open(filename)?;
         let mapped_data = unsafe { Mmap::map(&file)? };
+        let other_filename = "./test/Pe32.exe";
+        let other_file = File::open(other_filename)?;
+        let other = unsafe { Mmap::map(&other_file)? };
+
+        visualize::dump(&mapped_data);
+        visualize::diff(&mapped_data, &other);
+
         let loader = loader::pe::PeLoader::new(mapped_data);
         loader.header_show();
         loader.show_segment();
         loader.show_section();
-        visualize::dump(loader.mem_data());
+        loader.disassemble();
+        loader.analysis();
 
         Ok(())
     }
